@@ -1,1 +1,1640 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薪資單生成系統 - 完整版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 36px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .upload-section, .controls-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.1) 100%);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .employee-list {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .employee-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+        
+        .employee-card:hover {
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+        
+        .employee-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .employee-position {
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .employee-salary {
+            color: #28a745;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status.success {
+            background: rgba(212, 237, 218, 0.9);
+            color: #155724;
+            border: 1px solid rgba(195, 230, 203, 0.5);
+        }
+        
+        .status.error {
+            background: rgba(248, 215, 218, 0.9);
+            color: #721c24;
+            border: 1px solid rgba(245, 198, 203, 0.5);
+        }
+        
+        .status.info {
+            background: rgba(209, 236, 241, 0.9);
+            color: #0c5460;
+            border: 1px solid rgba(190, 229, 235, 0.5);
+        }
+        
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: rgba(233, 236, 239, 0.8);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .tier-system {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .tier-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .tier-card {
+            background: rgba(248, 255, 248, 0.8);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+            border-left: 4px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .tier-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #155724;
+            margin-bottom: 15px;
+        }
+        
+        .tier-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(40, 167, 69, 0.1);
+            font-size: 14px;
+        }
+        
+        .tier-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tier-level {
+            font-weight: 600;
+        }
+        
+        .tier-rate {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s ease;
+        }
+        
+        .close:hover {
+            color: #333;
+        }
+        
+        .edit-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .form-input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .batch-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tier-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .employee-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 標題區域 -->
+        <div class="header">
+            <h1>🧾 薪資單生成系統</h1>
+            <p>上傳Excel薪資檔案，批次或個別生成專業薪資單，支援即時編輯</p>
+        </div>
 
+        <!-- 主要控制區域 -->
+        <div class="main-grid">
+            <!-- 上傳區域 -->
+            <div class="upload-section">
+                <h2 class="section-title">📁 上傳薪資檔案</h2>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📄</div>
+                    <p>點擊或拖拽Excel檔案到此處</p>
+                    <p style="color: #666; font-size: 14px; margin-top: 10px;">支援 .xlsx, .xls 格式</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+                </div>
+                
+                <div class="status" id="status"></div>
+                <div class="progress" id="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- 控制區域 -->
+            <div class="controls-section">
+                <h2 class="section-title">⚙️ 操作控制</h2>
+                <div class="batch-controls">
+                    <button class="btn btn-success" onclick="generateAllSlips()" id="batchBtn" disabled>
+                        📄 批量生成全部
+                    </button>
+                    <button class="btn btn-warning" onclick="downloadTemplate()">
+                        📋 下載模板
+                    </button>
+                    <button class="btn btn-danger" onclick="resetSystem()">
+                        🔄 重置系統
+                    </button>
+                </div>
+                <div style="margin-top: 20px;">
+                    <p style="color: #666; font-size: 14px;">
+                        • 上傳完成後可選擇個別員工生成薪資單<br>
+                        • 支援即時編輯薪資數據<br>
+                        • 批量生成會為所有員工建立薪資單
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 階梯制度說明 -->
+        <div class="tier-system">
+            <h2 class="section-title">📊 提成階梯制度</h2>
+            <div class="tier-grid">
+                <div class="tier-card">
+                    <div class="tier-title">客服業績提成</div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥉 < 93,750 U</span>
+                        <span class="tier-rate">6.5%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥈 93,750-219,000 U</span>
+                        <span class="tier-rate">7%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥇 ≥ 219,000 U</span>
+                        <span class="tier-rate">8%</span>
+                    </div>
+                </div>
+                
+                <div class="tier-card">
+                    <div class="tier-title">自開客業績提成</div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥉 < 93,750 U</span>
+                        <span class="tier-rate">8%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥈 93,750-219,000 U</span>
+                        <span class="tier-rate">9%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥇 ≥ 219,000 U</span>
+                        <span class="tier-rate">10%</span>
+                    </div>
+                </div>
+                
+                <div class="tier-card">
+                    <div class="tier-title">開發業績提成</div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥉 < 156,250 U</span>
+                        <span class="tier-rate">4%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥈 156,250-312,500 U</span>
+                        <span class="tier-rate">4.5%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥇 ≥ 312,500 U</span>
+                        <span class="tier-rate">5%</span>
+                    </div>
+                </div>
+                
+                <div class="tier-card">
+                    <div class="tier-title">攻擊手業績提成</div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥉 < 240,000 U</span>
+                        <span class="tier-rate">6%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥈 240,000-281,250 U</span>
+                        <span class="tier-rate">7%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥇 ≥ 281,250 U</span>
+                        <span class="tier-rate">8%</span>
+                    </div>
+                </div>
+                
+                <div class="tier-card">
+                    <div class="tier-title">砍刀業績提成</div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥉 < 156,250 U</span>
+                        <span class="tier-rate">5%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥈 156,250-375,000 U</span>
+                        <span class="tier-rate">6%</span>
+                    </div>
+                    <div class="tier-item">
+                        <span class="tier-level">🥇 ≥ 375,000 U</span>
+                        <span class="tier-rate">7%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 員工列表 -->
+        <div class="employee-list" id="employeeList">
+            <h2 class="section-title">👥 選擇員工生成薪資單</h2>
+            <div class="employee-grid" id="employeeGrid"></div>
+        </div>
+
+        <!-- 編輯模態框 -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="modalTitle">編輯員工薪資數據</h2>
+                    <span class="close" onclick="closeEditModal()">&times;</span>
+                </div>
+                <form id="editForm" class="edit-form">
+                    <!-- 動態生成表單內容 -->
+                </form>
+                <div style="margin-top: 30px; text-align: center;">
+                    <button class="btn btn-success" onclick="saveChanges()">💾 儲存變更</button>
+                    <button class="btn" onclick="generateSalarySlip(currentEditEmployee)">📄 生成薪資單</button>
+                    <button class="btn btn-danger" onclick="closeEditModal()">❌ 取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let workbookData = null;
+        let salaryData = [];
+        let commissionData = [];
+        let performanceData = [];
+        let currentEditEmployee = null;
+
+        // 階梯制度定義
+        const tierSystems = {
+            customer: [
+                { min: 0, max: 93750, rate: 0.065, tier: "🥉", desc: "< 93,750 U: 6.5%" },
+                { min: 93750, max: 219000, rate: 0.07, tier: "🥈", desc: "93,750-219,000 U: 7%" },
+                { min: 219000, max: Infinity, rate: 0.08, tier: "🥇", desc: "≥ 219,000 U: 8%" }
+            ],
+            selfCustomer: [
+                { min: 0, max: 93750, rate: 0.08, tier: "🥉", desc: "< 93,750 U: 8%" },
+                { min: 93750, max: 219000, rate: 0.09, tier: "🥈", desc: "93,750-219,000 U: 9%" },
+                { min: 219000, max: Infinity, rate: 0.10, tier: "🥇", desc: "≥ 219,000 U: 10%" }
+            ],
+            development: [
+                { min: 0, max: 156250, rate: 0.04, tier: "🥉", desc: "< 156,250 U: 4%" },
+                { min: 156250, max: 312500, rate: 0.045, tier: "🥈", desc: "156,250-312,500 U: 4.5%" },
+                { min: 312500, max: Infinity, rate: 0.05, tier: "🥇", desc: "≥ 312,500 U: 5%" }
+            ],
+            attack: [
+                { min: 0, max: 240000, rate: 0.06, tier: "🥉", desc: "< 240,000 U: 6%" },
+                { min: 240000, max: 281250, rate: 0.07, tier: "🥈", desc: "240,000-281,250 U: 7%" },
+                { min: 281250, max: Infinity, rate: 0.08, tier: "🥇", desc: "≥ 281,250 U: 8%" }
+            ],
+            knife: [
+                { min: 0, max: 156250, rate: 0.05, tier: "🥉", desc: "< 156,250 U: 5%" },
+                { min: 156250, max: 375000, rate: 0.06, tier: "🥈", desc: "156,250-375,000 U: 6%" },
+                { min: 375000, max: Infinity, rate: 0.07, tier: "🥇", desc: "≥ 375,000 U: 7%" }
+            ]
+        };
+
+        // 拖拽上傳功能
+        const uploadArea = document.querySelector('.upload-area');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // 處理檔案上傳
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                showStatus('請上傳Excel檔案 (.xlsx 或 .xls)', 'error');
+                return;
+            }
+
+            showStatus('正在讀取檔案...', 'info');
+            showProgress(20);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    workbookData = XLSX.read(e.target.result, { type: 'binary' });
+                    showProgress(60);
+                    parseExcelData();
+                    showProgress(100);
+                    showStatus('檔案上傳成功！已載入 ' + (salaryData.length - 1) + ' 位員工資料', 'success');
+                    displayEmployeeList();
+                    document.getElementById('batchBtn').disabled = false;
+                } catch (error) {
+                    showStatus('檔案讀取失敗：' + error.message, 'error');
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        // 解析Excel數據
+        function parseExcelData() {
+            try {
+                const salarySheet = workbookData.Sheets["薪資總表"];
+                salaryData = XLSX.utils.sheet_to_json(salarySheet, { header: 1, defval: "" });
+
+                const commissionSheet = workbookData.Sheets["提成計算"];
+                commissionData = XLSX.utils.sheet_to_json(commissionSheet, { header: 1, defval: "" });
+
+                const performanceSheet = workbookData.Sheets["業績來源"];
+                performanceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1, defval: "" });
+
+                console.log('數據解析完成', { 
+                    salaryCount: salaryData.length, 
+                    commissionCount: commissionData.length, 
+                    performanceCount: performanceData.length 
+                });
+            } catch (error) {
+                throw new Error('Excel格式不正確，請檢查工作表名稱（薪資總表、提成計算、業績來源）');
+            }
+        }
+
+        // 顯示員工列表
+        function displayEmployeeList() {
+            const employeeList = document.getElementById('employeeList');
+            const employeeGrid = document.getElementById('employeeGrid');
+            
+            employeeGrid.innerHTML = '';
+            
+            const employees = salaryData.slice(1).filter(row => row[0] && row[0] !== '總計');
+            
+            employees.forEach((employee, index) => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+                
+                const name = employee[0];
+                const position = employee[1] || '未設定';
+                const salary = employee[20] || 0;
+                
+                card.innerHTML = `
+                    <div class="employee-name">${name}</div>
+                    <div class="employee-position">${position}</div>
+                    <div class="employee-salary">${salary.toLocaleString()} U</div>
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="btn" style="flex: 1; font-size: 12px; padding: 8px 12px;" onclick="openEditModal('${name}')">✏️ 編輯</button>
+                        <button class="btn btn-success" style="flex: 1; font-size: 12px; padding: 8px 12px;" onclick="generateSalarySlip('${name}')">📄 生成</button>
+                    </div>
+                `;
+                
+                employeeGrid.appendChild(card);
+            });
+            
+            employeeList.style.display = 'block';
+        }
+
+        // 顯示狀態信息
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // 顯示進度條
+        function showProgress(percent) {
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            
+            progress.style.display = 'block';
+            progressBar.style.width = percent + '%';
+            
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // 計算階梯提成
+        function calculateTierCommission(performance, tierType) {
+            const afterDeduction = performance * 0.9;
+            const tiers = tierSystems[tierType];
+            
+            for (let tier of tiers) {
+                if (afterDeduction >= tier.min && afterDeduction < tier.max) {
+                    return {
+                        tier: tier,
+                        afterDeduction: afterDeduction,
+                        commission: Math.round(afterDeduction * tier.rate)
+                    };
+                }
+            }
+            
+            return {
+                tier: tiers[0],
+                afterDeduction: afterDeduction,
+                commission: 0
+            };
+        }
+
+        // 打開編輯模態框
+        function openEditModal(employeeName) {
+            currentEditEmployee = employeeName;
+            const employeeData = salaryData.find(emp => emp[0] === employeeName);
+            const employeeCommission = commissionData.find(emp => emp[0] === employeeName);
+            
+            if (!employeeData || !employeeCommission) {
+                showStatus('找不到員工數據', 'error');
+                return;
+            }
+
+            // 設置模態框標題
+            document.getElementById('modalTitle').textContent = `編輯 ${employeeName} 的薪資數據`;
+            
+            // 生成編輯表單
+            const form = document.getElementById('editForm');
+            form.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label">姓名</label>
+                    <input type="text" class="form-input" id="edit_name" value="${employeeData[0] || ''}" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">職位</label>
+                    <input type="text" class="form-input" id="edit_position" value="${employeeData[1] || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">底薪 (U)</label>
+                    <input type="number" class="form-input" id="edit_baseSalary" value="${employeeData[2] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開發提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_developmentCommission" value="${employeeData[3] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">客服提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_customerCommission" value="${employeeData[4] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">自開客提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_selfCustomerCommission" value="${employeeData[5] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">攻擊手提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_attackCommission" value="${employeeData[8] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">砍刀提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_knifeCommission" value="${employeeData[9] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">車隊津貼 (U)</label>
+                    <input type="number" class="form-input" id="edit_carAllowance" value="${employeeData[10] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">達標獎金 (U)</label>
+                    <input type="number" class="form-input" id="edit_targetBonus" value="${employeeData[11] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">團績提成 (U)</label>
+                    <input type="number" class="form-input" id="edit_teamCommission" value="${employeeData[13] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">遲到扣款 (U)</label>
+                    <input type="number" class="form-input" id="edit_lateDeduction" value="${employeeData[16] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">休假扣款 (U)</label>
+                    <input type="number" class="form-input" id="edit_absentDeduction" value="${employeeData[17] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開銷扣款 (U)</label>
+                    <input type="number" class="form-input" id="edit_expenseDeduction" value="${employeeData[18] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">遲到分鐘</label>
+                    <input type="number" class="form-input" id="edit_lateMinutes" value="${employeeData[23] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">休假天數</label>
+                    <input type="number" class="form-input" id="edit_absentDays" value="${employeeData[24] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">客服業績 (U)</label>
+                    <input type="number" class="form-input" id="edit_customerPerformance" value="${employeeCommission[2] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開發業績 (U)</label>
+                    <input type="number" class="form-input" id="edit_developmentPerformance" value="${employeeCommission[4] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">自開客業績 (U)</label>
+                    <input type="number" class="form-input" id="edit_selfCustomerPerformance" value="${employeeCommission[6] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">攻擊手業績 (U)</label>
+                    <input type="number" class="form-input" id="edit_attackPerformance" value="${employeeCommission[8] || 0}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">砍刀業績 (U)</label>
+                    <input type="number" class="form-input" id="edit_knifePerformance" value="${employeeCommission[10] || 0}">
+                </div>
+            `;
+            
+            // 顯示模態框
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        // 關閉編輯模態框
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentEditEmployee = null;
+        }
+
+        // 儲存變更
+        function saveChanges() {
+            if (!currentEditEmployee) return;
+            
+            const employeeIndex = salaryData.findIndex(emp => emp[0] === currentEditEmployee);
+            const commissionIndex = commissionData.findIndex(emp => emp[0] === currentEditEmployee);
+            
+            if (employeeIndex === -1 || commissionIndex === -1) {
+                showStatus('找不到員工數據', 'error');
+                return;
+            }
+
+            // 更新薪資數據
+            salaryData[employeeIndex][1] = document.getElementById('edit_position').value;
+            salaryData[employeeIndex][2] = parseFloat(document.getElementById('edit_baseSalary').value) || 0;
+            salaryData[employeeIndex][3] = parseFloat(document.getElementById('edit_developmentCommission').value) || 0;
+            salaryData[employeeIndex][4] = parseFloat(document.getElementById('edit_customerCommission').value) || 0;
+            salaryData[employeeIndex][5] = parseFloat(document.getElementById('edit_selfCustomerCommission').value) || 0;
+            salaryData[employeeIndex][8] = parseFloat(document.getElementById('edit_attackCommission').value) || 0;
+            salaryData[employeeIndex][9] = parseFloat(document.getElementById('edit_knifeCommission').value) || 0;
+            salaryData[employeeIndex][10] = parseFloat(document.getElementById('edit_carAllowance').value) || 0;
+            salaryData[employeeIndex][11] = parseFloat(document.getElementById('edit_targetBonus').value) || 0;
+            salaryData[employeeIndex][13] = parseFloat(document.getElementById('edit_teamCommission').value) || 0;
+            salaryData[employeeIndex][16] = parseFloat(document.getElementById('edit_lateDeduction').value) || 0;
+            salaryData[employeeIndex][17] = parseFloat(document.getElementById('edit_absentDeduction').value) || 0;
+            salaryData[employeeIndex][18] = parseFloat(document.getElementById('edit_expenseDeduction').value) || 0;
+            salaryData[employeeIndex][23] = parseFloat(document.getElementById('edit_lateMinutes').value) || 0;
+            salaryData[employeeIndex][24] = parseFloat(document.getElementById('edit_absentDays').value) || 0;
+
+            // 更新提成數據
+            commissionData[commissionIndex][2] = parseFloat(document.getElementById('edit_customerPerformance').value) || 0;
+            commissionData[commissionIndex][4] = parseFloat(document.getElementById('edit_developmentPerformance').value) || 0;
+            commissionData[commissionIndex][6] = parseFloat(document.getElementById('edit_selfCustomerPerformance').value) || 0;
+            commissionData[commissionIndex][8] = parseFloat(document.getElementById('edit_attackPerformance').value) || 0;
+            commissionData[commissionIndex][10] = parseFloat(document.getElementById('edit_knifePerformance').value) || 0;
+
+            // 重新計算總薪資
+            const totalSalary = (
+                salaryData[employeeIndex][2] + // 底薪
+                salaryData[employeeIndex][3] + // 開發提成
+                salaryData[employeeIndex][4] + // 客服提成
+                salaryData[employeeIndex][5] + // 自開客提成
+                salaryData[employeeIndex][8] + // 攻擊手提成
+                salaryData[employeeIndex][9] + // 砍刀提成
+                salaryData[employeeIndex][10] + // 車隊津貼
+                salaryData[employeeIndex][11] + // 達標獎金
+                salaryData[employeeIndex][13] + // 團績提成
+                salaryData[employeeIndex][16] + // 遲到扣款
+                salaryData[employeeIndex][17] + // 休假扣款
+                salaryData[employeeIndex][18]   // 開銷扣款
+            );
+            salaryData[employeeIndex][20] = totalSalary;
+            salaryData[employeeIndex][22] = totalSalary; // 薪資發放
+
+            showStatus(`${currentEditEmployee} 的數據已更新`, 'success');
+            displayEmployeeList(); // 重新顯示員工列表
+            closeEditModal();
+        }
+
+        // 生成薪資單
+        function generateSalarySlip(employeeName) {
+            try {
+                const employeeData = salaryData.find(emp => emp[0] === employeeName);
+                const employeeCommission = commissionData.find(emp => emp[0] === employeeName);
+                
+                if (!employeeData || !employeeCommission) {
+                    showStatus('找不到員工數據', 'error');
+                    return;
+                }
+
+                // 獲取業績來源
+                const employeeSources = performanceData.filter(row => 
+                    (typeof row[0] === 'string' && row[0].includes(employeeName)) ||
+                    (typeof row[1] === 'string' && row[1].includes(employeeName)) ||
+                    (typeof row[2] === 'string' && row[2].includes(employeeName)) ||
+                    (typeof row[3] === 'string' && row[3].includes(employeeName))
+                );
+
+                const salarySlipHTML = generateSalarySlipHTML(employeeData, employeeCommission, employeeSources);
+                
+                // 在新視窗中打開薪資單
+                const newWindow = window.open('', '_blank');
+                newWindow.document.write(salarySlipHTML);
+                newWindow.document.close();
+                
+                showStatus(`已生成 ${employeeName} 的薪資單`, 'success');
+                
+            } catch (error) {
+                showStatus('生成薪資單失敗：' + error.message, 'error');
+            }
+        }
+
+        // 生成薪資單HTML
+        function generateSalarySlipHTML(employeeData, employeeCommission, sources) {
+            const name = employeeData[0];
+            const position = employeeData[1] || '未設定';
+            const baseSalary = employeeData[2] || 0;
+            const carAllowance = employeeData[10] || 0;
+            const targetBonus = employeeData[11] || 0;
+            const teamCommission = employeeData[13] || 0;
+            const lateDeduction = employeeData[16] || 0;
+            const absentDeduction = employeeData[17] || 0;
+            const expenseDeduction = employeeData[18] || 0;
+            const totalSalary = employeeData[20] || 0;
+            const lateMinutes = employeeData[23] || 0;
+            const absentDays = employeeData[24] || 0;
+
+            let leftSideCommissions = '';
+            let rightSidePerformances = '';
+
+            // 處理不同類型的提成
+            const commissionTypes = [
+                { key: 'customer', index: 2, label: '客服提成', tierType: 'customer', salaryIndex: 4 },
+                { key: 'development', index: 4, label: '開發提成', tierType: 'development', salaryIndex: 3 },
+                { key: 'selfCustomer', index: 6, label: '自開客提成', tierType: 'selfCustomer', salaryIndex: 5 },
+                { key: 'attack', index: 8, label: '攻擊手提成', tierType: 'attack', salaryIndex: 8 },
+                { key: 'knife', index: 10, label: '砍刀提成', tierType: 'knife', salaryIndex: 9 }
+            ];
+
+            commissionTypes.forEach(type => {
+                const performance = employeeCommission[type.index] || 0;
+                if (performance > 0) {
+                    const calc = calculateTierCommission(performance, type.tierType);
+                    const actualCommission = employeeData[type.salaryIndex] || calc.commission;
+                    
+                    // 左側薪資結構
+                    leftSideCommissions += `
+                        <div class="salary-row">
+                            <span class="salary-label">${type.label}${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
+                            <span class="salary-calc">${calc.afterDeduction.toLocaleString()} U × ${(calc.tier.rate * 100).toFixed(1)}%</span>
+                            <span class="salary-amount positive">${actualCommission.toLocaleString()} U</span>
+                        </div>
+                    `;
+
+                    // 右側業績表現 - 修正業績來源分類邏輯
+                    const relatedSources = sources.filter(source => {
+                        // 確保來源數據存在且有效
+                        if (!source || !source[3] || !source[4]) return false;
+                        
+                        const developer = source[0] || '';
+                        const customer = source[1] || '';
+                        const attacker = source[2] || '';
+                        const description = source[3] || '';
+                        
+                        switch(type.key) {
+                            case 'customer':
+                                // 客服業績：客服欄位包含該員工名字，且不是自己
+                                return customer.includes(name) && !customer.includes('自己');
+                            case 'development':
+                                // 開發業績：開發欄位包含該員工名字
+                                return developer.includes(name);
+                            case 'selfCustomer':
+                                // 自開客業績：客服欄位是「自己」且開發欄位包含該員工名字
+                                return customer.includes('自己') && developer.includes(name);
+                            case 'attack':
+                                // 攻擊手業績：攻擊手欄位包含該員工名字
+                                return attacker.includes(name);
+                            case 'knife':
+                                // 砍刀業績：根據描述或攻擊手欄位判斷（需要更具體的分類規則）
+                                return attacker.includes(name) && description.includes('砍刀');
+                            default:
+                                return false;
+                        }
+                    });
+
+                    // 生成業績來源清單，去除重複項目
+                    const uniqueSources = [];
+                    const seenSources = new Set();
+                    
+                    relatedSources.forEach(source => {
+                        const sourceKey = `${source[3]}_${source[4]}`;
+                        if (!seenSources.has(sourceKey)) {
+                            seenSources.add(sourceKey);
+                            uniqueSources.push(source);
+                        }
+                    });
+                    
+                    const sourcesList = uniqueSources.map(source => 
+                        `${source[3]}: ${(source[4] || 0).toLocaleString()} U`
+                    ).join('<br>');
+
+                    rightSidePerformances += `
+                        <div class="performance-category">
+                            <div class="category-header">${type.label.replace('提成', '業績')}</div>
+                            <div class="performance-details">
+                                <div class="perf-row">
+                                    <span class="perf-label">${type.label.replace('提成', '')}總業績</span>
+                                    <span class="perf-value">${performance.toLocaleString()} U</span>
+                                </div>
+                                <div class="perf-row">
+                                    <span class="perf-label">大區開銷後業績</span>
+                                    <span class="perf-value">${calc.afterDeduction.toLocaleString()} U (扣除10%)</span>
+                                </div>
+                                <div class="perf-row highlight">
+                                    <span class="perf-label">${type.label}${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
+                                    <span class="perf-value">${actualCommission.toLocaleString()} U</span>
+                                </div>
+                            </div>
+                            ${sourcesList ? `
+                                <div class="source-section">
+                                    <div class="source-header">業績來源明細：</div>
+                                    <div class="source-list">${sourcesList}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+            });
+
+            // 添加其他薪資項目
+            if (carAllowance > 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">車隊津貼</span>
+                        <span class="salary-calc">31,941 ÷ 2 ÷ 26</span>
+                        <span class="salary-amount positive">${carAllowance.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            if (targetBonus > 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">達標獎金</span>
+                        <span class="salary-calc">績效達標獎勵</span>
+                        <span class="salary-amount positive">${targetBonus.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            if (teamCommission > 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">團績提成</span>
+                        <span class="salary-calc">團隊績效獎勵</span>
+                        <span class="salary-amount positive">${teamCommission.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            if (lateDeduction < 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">遲到扣款</span>
+                        <span class="salary-calc">${lateMinutes}分鐘</span>
+                        <span class="salary-amount negative">${lateDeduction.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            if (absentDeduction < 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">休假扣款</span>
+                        <span class="salary-calc">${absentDays}天</span>
+                        <span class="salary-amount negative">${absentDeduction.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            if (expenseDeduction < 0) {
+                leftSideCommissions += `
+                    <div class="salary-row">
+                        <span class="salary-label">開銷扣款</span>
+                        <span class="salary-calc">400 ÷ 6</span>
+                        <span class="salary-amount negative">${expenseDeduction.toLocaleString()} U</span>
+                    </div>
+                `;
+            }
+
+            return `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${name} 薪資單</title>
+    <style>
+        @media print {
+            body { margin: 0; background: white !important; }
+            .no-print { display: none !important; }
+            .salary-slip { 
+                page-break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #333 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                background: white !important;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Arial', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .print-controls {
+            text-align: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .pdf-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .pdf-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .salary-slip {
+            background: white;
+            border: 1px solid #e0e0e0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0 auto;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 210mm;
+            min-height: 297mm;
+        }
+        
+        .slip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-bottom: 2px solid #007bff;
+            background: #f8f9ff;
+        }
+        
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .calendar-icon {
+            color: #dc3545;
+            font-size: 18px;
+        }
+        
+        .chart-icon {
+            color: #28a745;
+            font-size: 18px;
+        }
+        
+        .header-title, .performance-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .slip-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 25px;
+            min-height: 600px;
+        }
+        
+        .left-column {
+            border-right: 1px solid #e0e0e0;
+            padding-right: 25px;
+        }
+        
+        .right-column {
+            padding-left: 25px;
+            background: #fafafa;
+            margin-left: -25px;
+            margin-right: -25px;
+            margin-bottom: -25px;
+            padding: 25px;
+        }
+        
+        .basic-info {
+            margin-bottom: 25px;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .label {
+            color: #666;
+            margin-right: 8px;
+            font-weight: 500;
+        }
+        
+        .job-label {
+            margin-left: 60px;
+        }
+        
+        .value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .note-row {
+            margin-top: 15px;
+        }
+        
+        .note {
+            color: #888;
+            font-size: 13px;
+        }
+        
+        .salary-section {
+            margin-top: 20px;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .money-icon {
+            color: #ffc107;
+            font-size: 16px;
+        }
+        
+        .salary-list {
+            margin-bottom: 20px;
+        }
+        
+        .salary-row {
+            display: grid;
+            grid-template-columns: 140px 1fr 80px;
+            gap: 15px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        
+        .salary-label {
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .salary-calc {
+            color: #888;
+            font-size: 11px;
+            text-align: left;
+        }
+        
+        .salary-amount {
+            text-align: right;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .salary-amount.positive {
+            color: #28a745;
+        }
+        
+        .salary-amount.negative {
+            color: #dc3545;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-top: 2px solid #007bff;
+            margin-top: 15px;
+        }
+        
+        .total-label {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .total-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #007bff;
+        }
+        
+        .performance-category {
+            background: white;
+            border: 1px solid #e8f5e8;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .category-header {
+            background: #f8fff8;
+            padding: 12px 15px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #155724;
+            border-bottom: 1px solid #e8f5e8;
+        }
+        
+        .performance-details {
+            padding: 12px 15px 0 15px;
+        }
+        
+        .perf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #f8f9fa;
+            font-size: 13px;
+        }
+        
+        .perf-row:last-child {
+            border-bottom: none;
+        }
+        
+        .perf-row.highlight {
+            background: #f0f8f0;
+            margin: 6px -15px 0 -15px;
+            padding: 8px 15px;
+            font-weight: 600;
+        }
+        
+        .perf-label {
+            color: #555;
+        }
+        
+        .perf-value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .perf-row.highlight .perf-value {
+            color: #28a745;
+            font-weight: 700;
+        }
+        
+        .source-section {
+            background: #f8f9fa;
+            border-top: 1px solid #e8f5e8;
+            padding: 12px 15px;
+            margin: 12px 0 0 0;
+        }
+        
+        .source-header {
+            color: #333;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding-left: 0;
+            margin-left: 0;
+        }
+        
+        .source-list {
+            color: #555;
+            font-size: 12px;
+            line-height: 1.5;
+            padding-left: 0;
+            margin-left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="print-controls no-print">
+            <button class="pdf-btn" onclick="window.print()">🖨️ 列印薪資單</button>
+            <button class="pdf-btn" onclick="window.close()">🔙 返回</button>
+        </div>
+        
+        <div class="salary-slip">
+            <div class="slip-header">
+                <div class="header-left">
+                    <span class="calendar-icon">📅</span>
+                    <span class="header-title">個人薪資明細（2025/06）</span>
+                </div>
+                <div class="header-right">
+                    <span class="chart-icon">📊</span>
+                    <span class="performance-title">業績表現</span>
+                </div>
+            </div>
+            
+            <div class="slip-content">
+                <div class="left-column">
+                    <div class="basic-info">
+                        <div class="info-row">
+                            <span class="label">人員：</span>
+                            <span class="value">${name}</span>
+                            <span class="label job-label">職位：</span>
+                            <span class="value">${position}</span>
+                        </div>
+                        <div class="note-row">
+                            <span class="note">備註：本月 USDT 匯率：32</span>
+                        </div>
+                    </div>
+                    
+                    <div class="salary-section">
+                        <div class="section-header">
+                            <span class="money-icon">💰</span>
+                            <span class="section-title">薪資結構</span>
+                        </div>
+                        
+                        <div class="salary-list">
+                            <div class="salary-row">
+                                <span class="salary-label">底薪</span>
+                                <span class="salary-calc">35,000 ÷ 32</span>
+                                <span class="salary-amount positive">${baseSalary.toLocaleString()} U</span>
+                            </div>
+                            
+                            ${leftSideCommissions}
+                        </div>
+                        
+                        <div class="total-row">
+                            <span class="total-label">本月總薪</span>
+                            <span class="total-amount">${totalSalary.toLocaleString()} U</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="right-column">
+                    ${rightSidePerformances}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+            `;
+        }
+
+        // 批量生成所有薪資單
+        function generateAllSlips() {
+            const employees = salaryData.slice(1).filter(row => row[0] && row[0] !== '總計');
+            let count = 0;
+            
+            showStatus(`正在批量生成 ${employees.length} 份薪資單...`, 'info');
+            
+            employees.forEach((employee, index) => {
+                setTimeout(() => {
+                    generateSalarySlip(employee[0]);
+                    count++;
+                    showProgress((count / employees.length) * 100);
+                    if (count === employees.length) {
+                        setTimeout(() => {
+                            showStatus(`已成功生成 ${count} 份薪資單`, 'success');
+                        }, 500);
+                    }
+                }, index * 800); // 每800ms生成一份，避免瀏覽器阻塞
+            });
+        }
+
+        // 下載薪資單模板
+        function downloadTemplate() {
+            const templateData = [
+                ['人員', '職位', '本月底薪', '開發提成', '客服提成', '自開客提成', '廣告提成', '炒群手提成', '攻擊手提成', '砍刀提成', '車商津貼', '達標獎金', '主管獎金', '團績提成', '開發管理獎金', '銜接工作', '遲到扣薪', '休假扣薪', '開銷扣銷', '表現扣薪', '本月薪資', '員工預支', '薪資發放', '本月遲到（分鐘）', '本月休假（天數）'],
+                ['範例員工', '自開客', 1094, 0, 2981, 3478, 0, 0, 0, 0, 614, 1562, 0, 0, 0, 0, -545, 0, -66, 0, 16141, 0, 16141, 109, 0]
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(templateData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "薪資總表");
+
+            // 添加提成計算表
+            const commissionTemplate = [
+                ['人員', '職位', '客服業績', '客服提成', '開發業績', '開發提成', '自開客業績', '自開客提成', '攻擊手業績', '攻擊手提成', '砍刀業績', '砍刀提成'],
+                ['範例員工', '自開客', 158794, 10004, 0, 0, 48316, 3478, 0, 0, 0, 0]
+            ];
+            const ws2 = XLSX.utils.aoa_to_sheet(commissionTemplate);
+            XLSX.utils.book_append_sheet(wb, ws2, "提成計算");
+
+            // 添加業績來源表
+            const performanceTemplate = [
+                ['開發', '客服', '攻擊手', '業績導入呈現', '總業績'],
+                ['奶爸', 'RM', '凌晨', '奶爸導RM導凌晨：58,200', 58200],
+                ['程程', '自己', '凌晨', '程程導自己導凌晨：47,404', 47404]
+            ];
+            const ws3 = XLSX.utils.aoa_to_sheet(performanceTemplate);
+            XLSX.utils.book_append_sheet(wb, ws3, "業績來源");
+
+            XLSX.writeFile(wb, "薪資單模板.xlsx");
+            showStatus('薪資單模板已下載', 'success');
+        }
+
+        // 重置系統
+        function resetSystem() {
+            if (confirm('確定要重置系統嗎？這將清除所有已載入的數據。')) {
+                workbookData = null;
+                salaryData = [];
+                commissionData = [];
+                performanceData = [];
+                currentEditEmployee = null;
+                
+                document.getElementById('fileInput').value = '';
+                document.getElementById('employeeList').style.display = 'none';
+                document.getElementById('employeeGrid').innerHTML = '';
+                document.getElementById('batchBtn').disabled = true;
+                document.getElementById('status').style.display = 'none';
+                document.getElementById('progress').style.display = 'none';
+                
+                showStatus('系統已重置', 'info');
+            }
+        }
+
+        // 點擊模態框外部關閉
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        }
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+        });
+
+        // 頁面載入完成提示
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('薪資單生成系統已載入完成');
+            showStatus('系統已就緒，請上傳Excel檔案開始使用', 'info');
+        });
+    </script>
+</body>
+</html>
