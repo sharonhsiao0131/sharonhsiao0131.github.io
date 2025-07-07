@@ -1063,23 +1063,13 @@
                 let actualCommission = 0;
                 
                 if (type.isAdvertisement) {
-                    // 處理廣告提成 - 包含非廣告職位的廣告業績
+                    // 處理廣告提成
                     const adData = advertisementData.find(ad => ad[0] === name);
                     if (adData) {
                         performance = adData[2] || 0; // 廣告業績
                         const adCommission = adData[3] || 0; // 廣告提成
                         const nonAdCommission = adData[4] || 0; // 非廣告提成
                         actualCommission = adCommission + nonAdCommission; // 總計
-                    } else if (position !== '廣告' && employeeData[6] > 0) {
-                        // 非廣告職位但有廣告提成的情況
-                        const nonAdEntry = commissionData.find(row => 
-                            row[0] === name && row[2] !== undefined && row[2] !== '' && 
-                            row.length > 10 && (row[1] === '客服' || row[1] === '開發' || !row[1])
-                        );
-                        if (nonAdEntry) {
-                            performance = nonAdEntry[2] || 0;
-                            actualCommission = nonAdEntry[3] || 0;
-                        }
                     }
                 } else {
                     // 處理其他類型提成
@@ -1092,35 +1082,24 @@
                     
                     // 左側薪資結構
                     if (type.isAdvertisement) {
-                        if (position === '廣告') {
-                            // 廣告職位的顯示方式
-                            const adData = advertisementData.find(ad => ad[0] === name);
-                            const adCommission = adData ? adData[3] || 0 : 0;
-                            const nonAdCommission = adData ? adData[4] || 0 : 0;
-                            
+                        // 廣告提成顯示方式
+                        const adData = advertisementData.find(ad => ad[0] === name);
+                        const adCommission = adData ? adData[3] || 0 : 0;
+                        const nonAdCommission = adData ? adData[4] || 0 : 0;
+                        
+                        leftSideCommissions += `
+                            <div class="salary-row">
+                                <span class="salary-label">廣告提成${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
+                                <span class="salary-calc">${calc.afterDeduction.toLocaleString()} U × ${(calc.tier.rate * 100).toFixed(1)}%</span>
+                                <span class="salary-amount positive">${adCommission.toLocaleString()} U</span>
+                            </div>
+                        `;
+                        if (nonAdCommission > 0) {
                             leftSideCommissions += `
                                 <div class="salary-row">
-                                    <span class="salary-label">廣告提成${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
-                                    <span class="salary-calc">${calc.afterDeduction.toLocaleString()} U × ${(calc.tier.rate * 100).toFixed(1)}%</span>
-                                    <span class="salary-amount positive">${adCommission.toLocaleString()} U</span>
-                                </div>
-                            `;
-                            if (nonAdCommission > 0) {
-                                leftSideCommissions += `
-                                    <div class="salary-row">
-                                        <span class="salary-label">非廣告提成</span>
-                                        <span class="salary-calc">他人廣告業績分成</span>
-                                        <span class="salary-amount positive">${nonAdCommission.toLocaleString()} U</span>
-                                    </div>
-                                `;
-                            }
-                        } else {
-                            // 非廣告職位但有廣告業績的顯示方式
-                            leftSideCommissions += `
-                                <div class="salary-row">
-                                    <span class="salary-label">廣告提成(分配給廣告部)</span>
-                                    <span class="salary-calc">${calc.afterDeduction.toLocaleString()} U × ${(calc.tier.rate * 100).toFixed(1)}%</span>
-                                    <span class="salary-amount" style="color: #ffc107;">${actualCommission.toLocaleString()} U</span>
+                                    <span class="salary-label">非廣告提成</span>
+                                    <span class="salary-calc">他人廣告業績分成</span>
+                                    <span class="salary-amount positive">${nonAdCommission.toLocaleString()} U</span>
                                 </div>
                             `;
                         }
@@ -1186,89 +1165,57 @@
 
                     // 處理廣告提成的特殊顯示
                     if (type.isAdvertisement) {
-                        if (position === '廣告') {
-                            // 廣告職位的業績表現
-                            const adData = advertisementData.find(ad => ad[0] === name);
-                            const adCommission = adData ? adData[3] || 0 : 0;
-                            const nonAdCommission = adData ? adData[4] || 0 : 0;
-                            
-                            // 非廣告提成來源明細
-                            const nonAdSources = [
-                                '程程(客服)廣告業績: 135,428 U → 2,437 U',
-                                '順子(開發)廣告業績: 267 U → 4 U', 
-                                '寶馬廣告業績: 2,278 U → 41 U',
-                                '胖胖廣告業績: 7,063 U → 127 U'
-                            ].join('<br>');
+                        const adData = advertisementData.find(ad => ad[0] === name);
+                        const adCommission = adData ? adData[3] || 0 : 0;
+                        const nonAdCommission = adData ? adData[4] || 0 : 0;
+                        
+                        // 非廣告提成來源明細
+                        const nonAdSources = [
+                            '程程(客服)廣告業績: 135,428 U → 2,437 U',
+                            '順子(開發)廣告業績: 267 U → 4 U', 
+                            '寶馬廣告業績: 2,278 U → 41 U',
+                            '胖胖廣告業績: 7,063 U → 127 U'
+                        ].join('<br>');
 
-                            rightSidePerformances += `
-                                <div class="performance-category">
-                                    <div class="category-header">${type.label.replace('提成', '業績')}</div>
-                                    <div class="performance-details">
-                                        <div class="perf-row">
-                                            <span class="perf-label">${type.label.replace('提成', '')}總業績</span>
-                                            <span class="perf-value">${performance.toLocaleString()} U</span>
-                                        </div>
-                                        <div class="perf-row">
-                                            <span class="perf-label">大區開銷後業績</span>
-                                            <span class="perf-value">${calc.afterDeduction.toLocaleString()} U (扣除10%)</span>
-                                        </div>
-                                        <div class="perf-row highlight">
-                                            <span class="perf-label">${type.label}${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
-                                            <span class="perf-value">${adCommission.toLocaleString()} U</span>
-                                        </div>
-                                        ${nonAdCommission > 0 ? `
-                                        <div class="perf-row highlight">
-                                            <span class="perf-label">非廣告提成</span>
-                                            <span class="perf-value">${nonAdCommission.toLocaleString()} U</span>
-                                        </div>
-                                        ` : ''}
-                                        <div class="perf-row" style="background: #e8f5e8; margin: 6px -15px 0 -15px; padding: 8px 15px; font-weight: 600;">
-                                            <span class="perf-label">廣告提成總計</span>
-                                            <span class="perf-value" style="color: #28a745; font-weight: 700;">${(adCommission + nonAdCommission).toLocaleString()} U</span>
-                                        </div>
+                        rightSidePerformances += `
+                            <div class="performance-category">
+                                <div class="category-header">${type.label.replace('提成', '業績')}</div>
+                                <div class="performance-details">
+                                    <div class="perf-row">
+                                        <span class="perf-label">${type.label.replace('提成', '')}總業績</span>
+                                        <span class="perf-value">${performance.toLocaleString()} U</span>
                                     </div>
-                                    <div class="source-section">
-                                        <div class="source-header">自有廣告業績：</div>
-                                        <div class="source-list">廣告投放業績：${performance.toLocaleString()} U</div>
+                                    <div class="perf-row">
+                                        <span class="perf-label">大區開銷後業績</span>
+                                        <span class="perf-value">${calc.afterDeduction.toLocaleString()} U (扣除10%)</span>
+                                    </div>
+                                    <div class="perf-row highlight">
+                                        <span class="perf-label">${type.label}${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
+                                        <span class="perf-value">${adCommission.toLocaleString()} U</span>
                                     </div>
                                     ${nonAdCommission > 0 ? `
-                                    <div class="source-section">
-                                        <div class="source-header">非廣告提成來源（總計2,609U ÷ 2人）：</div>
-                                        <div class="source-list">${nonAdSources}</div>
+                                    <div class="perf-row highlight">
+                                        <span class="perf-label">非廣告提成</span>
+                                        <span class="perf-value">${nonAdCommission.toLocaleString()} U</span>
                                     </div>
                                     ` : ''}
-                                </div>
-                            `;
-                        } else {
-                            // 非廣告職位但有廣告業績的業績表現
-                            rightSidePerformances += `
-                                <div class="performance-category" style="border-left: 4px solid #ffc107;">
-                                    <div class="category-header" style="background: #fffdf6; color: #856404;">廣告業績（分配給廣告部）</div>
-                                    <div class="performance-details">
-                                        <div class="perf-row">
-                                            <span class="perf-label">廣告總業績</span>
-                                            <span class="perf-value">${performance.toLocaleString()} U</span>
-                                        </div>
-                                        <div class="perf-row">
-                                            <span class="perf-label">大區開銷後業績</span>
-                                            <span class="perf-value">${calc.afterDeduction.toLocaleString()} U (扣除10%)</span>
-                                        </div>
-                                        <div class="perf-row highlight" style="background: #fffdf6;">
-                                            <span class="perf-label">計算提成${(calc.tier.rate * 100).toFixed(1)}% ${calc.tier.tier}</span>
-                                            <span class="perf-value" style="color: #856404;">${actualCommission.toLocaleString()} U</span>
-                                        </div>
-                                        <div class="perf-row" style="background: #fff3cd; margin: 6px -15px 0 -15px; padding: 8px 15px; font-weight: 600;">
-                                            <span class="perf-label">分配方式</span>
-                                            <span class="perf-value" style="color: #856404; font-weight: 700;">平均分給阿瑞、大東各 ${Math.round(actualCommission/2)} U</span>
-                                        </div>
-                                    </div>
-                                    <div class="source-section">
-                                        <div class="source-header">說明：</div>
-                                        <div class="source-list">此廣告業績提成不歸${name}本人，而是平均分配給廣告職位人員</div>
+                                    <div class="perf-row" style="background: #e8f5e8; margin: 6px -15px 0 -15px; padding: 8px 15px; font-weight: 600;">
+                                        <span class="perf-label">廣告提成總計</span>
+                                        <span class="perf-value" style="color: #28a745; font-weight: 700;">${(adCommission + nonAdCommission).toLocaleString()} U</span>
                                     </div>
                                 </div>
-                            `;
-                        }
+                                <div class="source-section">
+                                    <div class="source-header">自有廣告業績：</div>
+                                    <div class="source-list">廣告投放業績：${performance.toLocaleString()} U</div>
+                                </div>
+                                ${nonAdCommission > 0 ? `
+                                <div class="source-section">
+                                    <div class="source-header">非廣告提成來源（總計2,609U ÷ 2人）：</div>
+                                    <div class="source-list">${nonAdSources}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        `;
                     } else {
                         rightSidePerformances += `
                             <div class="performance-category">
