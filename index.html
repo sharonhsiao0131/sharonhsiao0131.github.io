@@ -277,28 +277,34 @@
             100% { transform: rotate(360deg); }
         }
         
-        .tier-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
+        .source-detail {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .source-header {
+            background: #e9ecef;
+            padding: 10px 15px;
             font-weight: bold;
-            margin-left: 5px;
+            color: #495057;
         }
         
-        .tier-bronze {
-            background: #cd7f32;
-            color: white;
+        .source-table {
+            width: 100%;
+            border-collapse: collapse;
         }
         
-        .tier-silver {
-            background: #c0c0c0;
-            color: #333;
+        .source-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
         }
         
-        .tier-gold {
-            background: #ffd700;
-            color: #333;
+        .source-table tr:last-child td {
+            border-bottom: none;
         }
         
         @media (max-width: 768px) {
@@ -424,58 +430,54 @@
         let employeeData = [];
         let selectedEmployee = null;
         let editMode = false;
+        let performanceSourceData = [];
 
-        // 階梯制度定義 - 更新的提成率
+        // 階梯制度定義
         const commissionRates = {
             客服: [
-                { min: 0, max: 93750, rate: 0.065, tier: '🥉', name: '銅牌' },
-                { min: 93750, max: 219000, rate: 0.07, tier: '🥈', name: '銀牌' },
-                { min: 219000, max: Infinity, rate: 0.08, tier: '🥇', name: '金牌' }
+                { min: 0, max: 93750, rate: 0.065 },
+                { min: 93750, max: 219000, rate: 0.07 },
+                { min: 219000, max: Infinity, rate: 0.08 }
             ],
             開發: [
-                { min: 0, max: 156250, rate: 0.04, tier: '🥉', name: '銅牌' },
-                { min: 156250, max: 312500, rate: 0.045, tier: '🥈', name: '銀牌' },
-                { min: 312500, max: Infinity, rate: 0.05, tier: '🥇', name: '金牌' }
+                { min: 0, max: 156250, rate: 0.04 },
+                { min: 156250, max: 312500, rate: 0.045 },
+                { min: 312500, max: Infinity, rate: 0.05 }
             ],
             自開客: [
-                { min: 0, max: 93750, rate: 0.08, tier: '🥉', name: '銅牌' },
-                { min: 93750, max: 219000, rate: 0.09, tier: '🥈', name: '銀牌' },
-                { min: 219000, max: Infinity, rate: 0.10, tier: '🥇', name: '金牌' }
+                { min: 0, max: 93750, rate: 0.08 },
+                { min: 93750, max: 219000, rate: 0.09 },
+                { min: 219000, max: Infinity, rate: 0.10 }
             ],
             攻擊手: [
-                { min: 0, max: 187500, rate: 0.06, tier: '🥉', name: '銅牌' },
-                { min: 187500, max: 281250, rate: 0.07, tier: '🥈', name: '銀牌' },
-                { min: 281250, max: Infinity, rate: 0.08, tier: '🥇', name: '金牌' }
+                { min: 0, max: 187500, rate: 0.06 },
+                { min: 187500, max: 281250, rate: 0.07 },
+                { min: 281250, max: Infinity, rate: 0.08 }
             ],
             砍刀: [
-                { min: 0, max: 156250, rate: 0.05, tier: '🥉', name: '銅牌' },
-                { min: 156250, max: 375000, rate: 0.06, tier: '🥈', name: '銀牌' },
-                { min: 375000, max: Infinity, rate: 0.07, tier: '🥇', name: '金牌' }
+                { min: 0, max: 156250, rate: 0.05 },
+                { min: 156250, max: 375000, rate: 0.06 },
+                { min: 375000, max: Infinity, rate: 0.07 }
             ]
         };
 
         // 計算提成等級和比率
         function getCommissionInfo(type, performance) {
             const rates = commissionRates[type];
-            if (!rates) return { rate: 0, tier: '', name: '', ratePercent: '0%' };
+            if (!rates) return { rate: 0, ratePercent: '0%' };
             
             for (let i = 0; i < rates.length; i++) {
                 if (performance >= rates[i].min && performance < rates[i].max) {
                     return {
                         rate: rates[i].rate,
-                        tier: rates[i].tier,
-                        name: rates[i].name,
                         ratePercent: (rates[i].rate * 100).toFixed(1) + '%'
                     };
                 }
             }
             
-            // 如果超過最高級別，返回最高級別
             const topTier = rates[rates.length - 1];
             return {
                 rate: topTier.rate,
-                tier: topTier.tier,
-                name: topTier.name,
                 ratePercent: (topTier.rate * 100).toFixed(1) + '%'
             };
         }
@@ -521,7 +523,7 @@
                 
                 // 讀取業績來源表
                 const performanceSheet = workbookData.Sheets['業績來源'];
-                const performanceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
+                performanceSourceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
 
                 // 處理員工資料
                 employeeData = [];
@@ -584,6 +586,56 @@
             } catch (error) {
                 showStatus('資料處理失敗：' + error.message, 'error');
             }
+        }
+
+        // 獲取業績來源明細
+        function getPerformanceDetails(employeeName) {
+            const details = {
+                dev: [],
+                service: [],
+                self: []
+            };
+
+            if (!performanceSourceData || performanceSourceData.length === 0) return details;
+
+            // 從第二行開始處理數據（第一行是標題）
+            for (let i = 1; i < performanceSourceData.length; i++) {
+                const row = performanceSourceData[i];
+                const devPerson = row[0]; // 開發人員
+                const servicePerson = row[1]; // 客服人員
+                const amount = row[2] || 0; // 金額
+
+                if (!devPerson || !servicePerson || !amount) continue;
+
+                // 開發業績：開發是該員工 且 客服不是自己
+                if (devPerson === employeeName && servicePerson !== employeeName) {
+                    details.dev.push({
+                        devPerson: devPerson,
+                        servicePerson: servicePerson,
+                        amount: amount
+                    });
+                }
+
+                // 客服業績：客服是該員工
+                if (servicePerson === employeeName) {
+                    details.service.push({
+                        devPerson: devPerson,
+                        servicePerson: servicePerson,
+                        amount: amount
+                    });
+                }
+
+                // 自開客業績：開發是該員工 且 客服是自己
+                if (devPerson === employeeName && servicePerson === employeeName) {
+                    details.self.push({
+                        devPerson: devPerson,
+                        servicePerson: servicePerson,
+                        amount: amount
+                    });
+                }
+            }
+
+            return details;
         }
 
         // 渲染員工列表
@@ -748,8 +800,7 @@
             if (!employee.performances) return '';
             
             let performanceHtml = '<h3>📊 業績表現</h3>';
-            
-            // 根據職位顯示相應業績
+            const performanceDetails = getPerformanceDetails(employee.name);
             const performances = employee.performances;
             
             if (performances.service > 0) {
@@ -757,11 +808,12 @@
                 const commissionInfo = getCommissionInfo('客服', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>👥 客服業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
+                        <h4>👥 客服業績</h4>
                         <p>總業績: ${performances.service.toLocaleString()}</p>
                         <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
                         <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.serviceCommission.toLocaleString()}</p>
+                        ${generateSourceDetails(performanceDetails.service, '客服業績來源明細')}
                     </div>
                 `;
             }
@@ -771,11 +823,12 @@
                 const commissionInfo = getCommissionInfo('開發', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🚀 開發業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
+                        <h4>🚀 開發業績</h4>
                         <p>總業績: ${performances.dev.toLocaleString()}</p>
                         <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
                         <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.devCommission.toLocaleString()}</p>
+                        ${generateSourceDetails(performanceDetails.dev, '開發業績來源明細')}
                     </div>
                 `;
             }
@@ -785,11 +838,12 @@
                 const commissionInfo = getCommissionInfo('自開客', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🎯 自開客業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
+                        <h4>🎯 自開客業績</h4>
                         <p>總業績: ${performances.self.toLocaleString()}</p>
                         <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
                         <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.selfCommission.toLocaleString()}</p>
+                        ${generateSourceDetails(performanceDetails.self, '自開客業績來源明細')}
                     </div>
                 `;
             }
@@ -799,7 +853,7 @@
                 const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>⚔️ 攻擊手業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
+                        <h4>⚔️ 攻擊手業績</h4>
                         <p>總業績: ${performances.attack.toLocaleString()}</p>
                         <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
                         <p>提成率: ${commissionInfo.ratePercent}</p>
@@ -813,7 +867,7 @@
                 const commissionInfo = getCommissionInfo('砍刀', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🔪 砍刀業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
+                        <h4>🔪 砍刀業績</h4>
                         <p>總業績: ${performances.knife.toLocaleString()}</p>
                         <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
                         <p>提成率: ${commissionInfo.ratePercent}</p>
@@ -826,520 +880,29 @@
             return performanceHtml;
         }
 
-        // 切換編輯模式
-        function toggleEditMode() {
-            if (!selectedEmployee) return;
+        // 生成業績來源明細
+        function generateSourceDetails(sourceList, title) {
+            if (!sourceList || sourceList.length === 0) return '';
             
-            editMode = !editMode;
-            const editForm = document.getElementById('editForm');
-            const editBtn = document.getElementById('editBtn');
+            let detailHtml = `
+                <div class="source-detail">
+                    <div class="source-header">${title}</div>
+                    <table class="source-table">
+            `;
             
-            if (editMode) {
-                editForm.style.display = 'block';
-                editBtn.textContent = '❌ 取消編輯';
-                editBtn.className = 'btn btn-secondary';
-                
-                // 填充當前數據到編輯表單
-                document.getElementById('editBaseSalary').value = selectedEmployee.baseSalary;
-                document.getElementById('editDevCommission').value = selectedEmployee.devCommission;
-                document.getElementById('editServiceCommission').value = selectedEmployee.serviceCommission;
-                document.getElementById('editSelfCommission').value = selectedEmployee.selfCommission;
-                document.getElementById('editAttackCommission').value = selectedEmployee.attackCommission;
-                document.getElementById('editKnifeCommission').value = selectedEmployee.knifeCommission;
-                document.getElementById('editAdCommission').value = selectedEmployee.adCommission;
-                document.getElementById('editCarAllowance').value = selectedEmployee.carAllowance;
-                document.getElementById('editTargetBonus').value = selectedEmployee.targetBonus;
-                document.getElementById('editLateDeduction').value = selectedEmployee.lateDeduction;
-                document.getElementById('editVacationDeduction').value = selectedEmployee.vacationDeduction;
-                document.getElementById('editExpenseDeduction').value = selectedEmployee.expenseDeduction;
-            } else {
-                cancelEdit();
-            }
-        }
-
-        // 套用編輯
-        function applyEdit() {
-            if (!selectedEmployee) return;
+            sourceList.forEach(item => {
+                detailHtml += `
+                    <tr>
+                        <td>開發: ${item.devPerson}</td>
+                        <td>客服: ${item.servicePerson}</td>
+                        <td style="text-align: right;">${item.amount.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
             
-            // 更新選中員工的數據
-            selectedEmployee.baseSalary = parseFloat(document.getElementById('editBaseSalary').value) || 0;
-            selectedEmployee.devCommission = parseFloat(document.getElementById('editDevCommission').value) || 0;
-            selectedEmployee.serviceCommission = parseFloat(document.getElementById('editServiceCommission').value) || 0;
-            selectedEmployee.selfCommission = parseFloat(document.getElementById('editSelfCommission').value) || 0;
-            selectedEmployee.attackCommission = parseFloat(document.getElementById('editAttackCommission').value) || 0;
-            selectedEmployee.knifeCommission = parseFloat(document.getElementById('editKnifeCommission').value) || 0;
-            selectedEmployee.adCommission = parseFloat(document.getElementById('editAdCommission').value) || 0;
-            selectedEmployee.carAllowance = parseFloat(document.getElementById('editCarAllowance').value) || 0;
-            selectedEmployee.targetBonus = parseFloat(document.getElementById('editTargetBonus').value) || 0;
-            selectedEmployee.lateDeduction = parseFloat(document.getElementById('editLateDeduction').value) || 0;
-            selectedEmployee.vacationDeduction = parseFloat(document.getElementById('editVacationDeduction').value) || 0;
-            selectedEmployee.expenseDeduction = parseFloat(document.getElementById('editExpenseDeduction').value) || 0;
-            
-            // 重新計算總薪資
-            selectedEmployee.totalSalary = selectedEmployee.baseSalary + 
-                                         selectedEmployee.devCommission +
-                                         selectedEmployee.serviceCommission +
-                                         selectedEmployee.selfCommission +
-                                         selectedEmployee.attackCommission +
-                                         selectedEmployee.knifeCommission +
-                                         selectedEmployee.adCommission +
-                                         selectedEmployee.carAllowance +
-                                         selectedEmployee.targetBonus +
-                                         selectedEmployee.lateDeduction +
-                                         selectedEmployee.vacationDeduction +
-                                         selectedEmployee.expenseDeduction;
-            
-            // 重新渲染
-            renderEmployeeList();
-            generatePayslipPreview(selectedEmployee);
-            cancelEdit();
-            
-            showStatus('薪資資料已更新！', 'success');
-        }
-
-        // 取消編輯
-        function cancelEdit() {
-            editMode = false;
-            document.getElementById('editForm').style.display = 'none';
-            document.getElementById('editBtn').textContent = '✏️ 編輯模式';
-            document.getElementById('editBtn').className = 'btn btn-secondary';
-        }
-
-        // 生成選中薪資單
-        function generateSelectedPayslip() {
-            if (!selectedEmployee) return;
-            
-            const payslipWindow = window.open('', '_blank');
-            const payslipHtml = generateFullPayslipHtml(selectedEmployee);
-            
-            payslipWindow.document.write(payslipHtml);
-            payslipWindow.document.close();
-            
-            showStatus(`已生成 ${selectedEmployee.name} 的薪資單`, 'success');
-        }
-
-        // 批次生成所有薪資單
-        function generateAllPayslips() {
-            if (employeeData.length === 0) return;
-            
-            showLoading(true);
-            showStatus('正在批次生成薪資單...', 'info');
-            
-            setTimeout(() => {
-                employeeData.forEach((employee, index) => {
-                    setTimeout(() => {
-                        const payslipWindow = window.open('', '_blank');
-                        const payslipHtml = generateFullPayslipHtml(employee);
-                        
-                        payslipWindow.document.write(payslipHtml);
-                        payslipWindow.document.close();
-                        
-                        if (index === employeeData.length - 1) {
-                            showLoading(false);
-                            showStatus(`已成功生成 ${employeeData.length} 份薪資單！`, 'success');
-                        }
-                    }, index * 500); // 每0.5秒生成一份
-                });
-            }, 1000);
-        }
-
-        // 生成完整薪資單HTML
-        function generateFullPayslipHtml(employee) {
-            const salaryItems = [];
-            
-            if (employee.baseSalary > 0) {
-                salaryItems.push(['底薪', '35,000 / 32', employee.baseSalary, 'positive']);
-            }
-            
-            if (employee.devCommission > 0) {
-                const devPerformance = employee.performances?.dev || 0;
-                const afterExpense = Math.round(devPerformance * 0.9);
-                const commissionInfo = getCommissionInfo('開發', afterExpense);
-                salaryItems.push([`開發提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.devCommission, 'positive']);
-            }
-            
-            if (employee.serviceCommission > 0) {
-                const servicePerformance = employee.performances?.service || 0;
-                const afterExpense = Math.round(servicePerformance * 0.9);
-                const commissionInfo = getCommissionInfo('客服', afterExpense);
-                salaryItems.push([`客服提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.serviceCommission, 'positive']);
-            }
-            
-            if (employee.selfCommission > 0) {
-                const selfPerformance = employee.performances?.self || 0;
-                const afterExpense = Math.round(selfPerformance * 0.9);
-                const commissionInfo = getCommissionInfo('自開客', afterExpense);
-                salaryItems.push([`自開客提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.selfCommission, 'positive']);
-            }
-            
-            if (employee.attackCommission > 0) {
-                const attackPerformance = employee.performances?.attack || 0;
-                const afterExpense = Math.round(attackPerformance * 0.9);
-                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
-                salaryItems.push([`攻擊手提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.attackCommission, 'positive']);
-            }
-            
-            if (employee.knifeCommission > 0) {
-                const knifePerformance = employee.performances?.knife || 0;
-                const afterExpense = Math.round(knifePerformance * 0.9);
-                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
-                salaryItems.push([`砍刀提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.knifeCommission, 'positive']);
-            }
-            
-            if (employee.adCommission > 0) {
-                salaryItems.push(['廣告提成', '廣告業績提成', employee.adCommission, 'positive']);
-            }
-            
-            if (employee.carAllowance > 0) {
-                salaryItems.push(['車商津貼', '-', employee.carAllowance, 'positive']);
-            }
-            
-            if (employee.targetBonus > 0) {
-                salaryItems.push(['達標獎金', '-', employee.targetBonus, 'positive']);
-            }
-            
-            if (employee.lateDeduction < 0) {
-                salaryItems.push(['遲到扣款', `${employee.lateMinutes}分鐘`, employee.lateDeduction, 'negative']);
-            }
-            
-            if (employee.vacationDeduction < 0) {
-                salaryItems.push(['休假扣薪', `${employee.vacationDays}天`, employee.vacationDeduction, 'negative']);
-            }
-            
-            if (employee.expenseDeduction < 0) {
-                salaryItems.push(['開銷扣款', '-', employee.expenseDeduction, 'negative']);
-            }
-
-            return `
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${employee.name} - 個人薪資明細單</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Microsoft JhengHei', '微軟正黑體', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .payslip-container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .content {
-            padding: 30px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-        .employee-info {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-left: 5px solid #3498db;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #ecf0f1;
-        }
-        .salary-table {
-            width: 100%;
-            border-collapse: collapse;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .salary-table th, .salary-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #ecf0f1;
-        }
-        .salary-table th {
-            background: #3498db;
-            color: white;
-            font-weight: bold;
-        }
-        .salary-table tr:nth-child(even) {
-            background: #f8f9fa;
-        }
-        .amount {
-            font-weight: bold;
-            text-align: right;
-        }
-        .amount.positive { color: #27ae60; }
-        .amount.negative { color: #e74c3c; }
-        .total-row {
-            background: #2c3e50 !important;
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        .performance-group {
-            margin-bottom: 25px;
-            border: 1px solid #e3e3e3;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .performance-group-header {
-            background: #f5f5f5;
-            padding: 15px;
-            font-weight: bold;
-            color: #2c3e50;
-            border-bottom: 1px solid #e3e3e3;
-        }
-        .performance-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .performance-table td {
-            padding: 10px 15px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .performance-table tr:last-child td {
-            border-bottom: none;
-        }
-        .tier-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-            margin-left: 8px;
-        }
-        .tier-銅牌 {
-            background: #cd7f32;
-            color: white;
-        }
-        .tier-銀牌 {
-            background: #c0c0c0;
-            color: #333;
-        }
-        .tier-金牌 {
-            background: #ffd700;
-            color: #333;
-        }
-        .print-btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            cursor: pointer;
-            margin: 20px auto;
-            display: block;
-        }
-        @media print {
-            body { background: white; padding: 0; }
-            .payslip-container { box-shadow: none; max-width: none; }
-            .print-btn { display: none; }
-        }
-    </style>
-</head>
-<body>
-    <div class="payslip-container">
-        <div class="header">
-            <h1>📅 個人薪資明細（2025/06）</h1>
-            <div>Payslip for June 2025</div>
-        </div>
-        
-        <div class="content">
-            <div class="left-column">
-                <div class="employee-info">
-                    <div class="info-grid">
-                        <div><strong>人員:</strong> ${employee.name}</div>
-                        <div><strong>職位:</strong> ${employee.position}</div>
-                        <div><strong>備註:</strong> 本月 USDT 匯率：32</div>
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h2 class="section-title">💰 薪資結構</h2>
-                    <table class="salary-table">
-                        <thead>
-                            <tr>
-                                <th>項目</th>
-                                <th>計算方式或說明</th>
-                                <th>金額（U）</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${salaryItems.map(([item, desc, amount, type]) => `
-                                <tr>
-                                    <td>${item}</td>
-                                    <td>${desc}</td>
-                                    <td class="amount ${type}">${amount.toLocaleString()}</td>
-                                </tr>
-                            `).join('')}
-                            <tr class="total-row">
-                                <td colspan="2">本月總薪</td>
-                                <td class="amount">${employee.totalSalary.toLocaleString()}</td>
-                            </tr>
-                        </tbody>
+            detailHtml += `
                     </table>
                 </div>
-            </div>
-            
-            <div class="right-column">
-                <div class="section">
-                    <h2 class="section-title">📊 業績表現</h2>
-                    ${generatePerformanceGroupsHtml(employee)}
-                </div>
-            </div>
-        </div>
-        
-        <button class="print-btn" onclick="window.print()">🖨️ 列印薪資單</button>
-    </div>
-</body>
-</html>
             `;
-        }
-
-        // 生成業績組HTML
-        function generatePerformanceGroupsHtml(employee) {
-            if (!employee.performances) return '';
             
-            let html = '';
-            const performances = employee.performances;
-            
-            if (performances.service > 0) {
-                const afterExpense = Math.round(performances.service * 0.9);
-                const commissionInfo = getCommissionInfo('客服', afterExpense);
-                html += `
-                    <div class="performance-group">
-                        <div class="performance-group-header">👥 客服業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
-                        <table class="performance-table">
-                            <tr><td>客服總業績</td><td class="amount">${performances.service.toLocaleString()}</td></tr>
-                            <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>客服提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.serviceCommission.toLocaleString()}</td></tr>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            if (performances.dev > 0) {
-                const afterExpense = Math.round(performances.dev * 0.9);
-                const commissionInfo = getCommissionInfo('開發', afterExpense);
-                html += `
-                    <div class="performance-group">
-                        <div class="performance-group-header">🚀 開發業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
-                        <table class="performance-table">
-                            <tr><td>開發總業績</td><td class="amount">${performances.dev.toLocaleString()}</td></tr>
-                            <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>開發提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.devCommission.toLocaleString()}</td></tr>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            if (performances.self > 0) {
-                const afterExpense = Math.round(performances.self * 0.9);
-                const commissionInfo = getCommissionInfo('自開客', afterExpense);
-                html += `
-                    <div class="performance-group">
-                        <div class="performance-group-header">🎯 自開客業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
-                        <table class="performance-table">
-                            <tr><td>自開客總業績</td><td class="amount">${performances.self.toLocaleString()}</td></tr>
-                            <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>自開客提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.selfCommission.toLocaleString()}</td></tr>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            if (performances.attack > 0) {
-                const afterExpense = Math.round(performances.attack * 0.9);
-                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
-                html += `
-                    <div class="performance-group">
-                        <div class="performance-group-header">⚔️ 攻擊手業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
-                        <table class="performance-table">
-                            <tr><td>攻擊手總業績</td><td class="amount">${performances.attack.toLocaleString()}</td></tr>
-                            <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>攻擊手提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.attackCommission.toLocaleString()}</td></tr>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            if (performances.knife > 0) {
-                const afterExpense = Math.round(performances.knife * 0.9);
-                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
-                html += `
-                    <div class="performance-group">
-                        <div class="performance-group-header">🔪 砍刀業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
-                        <table class="performance-table">
-                            <tr><td>砍刀總業績</td><td class="amount">${performances.knife.toLocaleString()}</td></tr>
-                            <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>砍刀提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.knifeCommission.toLocaleString()}</td></tr>
-                        </table>
-                    </div>
-                `;
-            }
-            
-            return html;
-        }
-
-        // 顯示載入狀態
-        function showLoading(show) {
-            document.getElementById('loadingStatus').style.display = show ? 'block' : 'none';
-        }
-
-        // 顯示狀態訊息
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            
-            // 3秒後自動清除訊息
-            setTimeout(() => {
-                statusDiv.innerHTML = '';
-            }, 3000);
-        }
-
-        // 啟用按鈕
-        function enableButtons() {
-            document.getElementById('generateAllBtn').disabled = false;
-        }
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            showStatus('請上傳Excel文件開始使用', 'info');
-        });
-    </script>
-</body>
-</html>
+            return detailHtml;
