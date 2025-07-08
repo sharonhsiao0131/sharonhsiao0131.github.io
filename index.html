@@ -487,19 +487,29 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            console.log('開始處理文件:', file.name);
             showLoading(true);
             showStatus('正在讀取Excel文件...', 'info');
 
             const reader = new FileReader();
+            reader.onerror = function() {
+                showStatus('文件讀取失敗', 'error');
+                showLoading(false);
+            };
+            
             reader.onload = function(e) {
                 try {
+                    console.log('文件讀取完成，開始解析...');
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     workbookData = workbook;
                     
+                    console.log('工作簿解析完成，工作表:', Object.keys(workbook.Sheets));
+                    
                     processWorkbookData();
                     showStatus('Excel文件讀取成功！', 'success');
                 } catch (error) {
+                    console.error('處理錯誤:', error);
                     showStatus('Excel文件讀取失敗：' + error.message, 'error');
                 } finally {
                     showLoading(false);
@@ -510,25 +520,53 @@
 
         // 處理工作簿資料
         function processWorkbookData() {
-            if (!workbookData) return;
+            if (!workbookData) {
+                console.error('沒有工作簿數據');
+                return;
+            }
 
             try {
+                console.log('開始處理工作簿數據...');
+                
+                // 檢查必要的工作表是否存在
+                const sheetNames = Object.keys(workbookData.Sheets);
+                console.log('找到的工作表:', sheetNames);
+                
+                if (!workbookData.Sheets['薪資總表']) {
+                    showStatus('錯誤：找不到「薪資總表」工作表', 'error');
+                    return;
+                }
+                
                 // 讀取薪資總表
                 const salarySheet = workbookData.Sheets['薪資總表'];
                 const salaryData = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
+                console.log('薪資總表數據行數:', salaryData.length);
                 
-                // 讀取提成計算表
-                const commissionSheet = workbookData.Sheets['提成計算'];
-                const commissionData = XLSX.utils.sheet_to_json(commissionSheet, { header: 1 });
+                // 讀取提成計算表（可選）
+                let commissionData = [];
+                if (workbookData.Sheets['提成計算']) {
+                    const commissionSheet = workbookData.Sheets['提成計算'];
+                    commissionData = XLSX.utils.sheet_to_json(commissionSheet, { header: 1 });
+                    console.log('提成計算表數據行數:', commissionData.length);
+                }
                 
-                // 讀取業績來源表
-                const performanceSheet = workbookData.Sheets['業績來源'];
-                performanceSourceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
+                // 讀取業績來源表（可選）
+                if (workbookData.Sheets['業績來源']) {
+                    const performanceSheet = workbookData.Sheets['業績來源'];
+                    performanceSourceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
+                    console.log('業績來源表數據行數:', performanceSourceData.length);
+                } else {
+                    performanceSourceData = [];
+                    console.log('沒有找到業績來源表');
+                }
 
                 // 處理員工資料
                 employeeData = [];
-                const salaryHeaders = salaryData[0];
-                const commissionHeaders = commissionData[0];
+                
+                if (salaryData.length < 2) {
+                    showStatus('薪資總表沒有數據', 'error');
+                    return;
+                }
 
                 for (let i = 1; i < salaryData.length; i++) {
                     const salaryRow = salaryData[i];
@@ -538,16 +576,18 @@
 
                     // 尋找對應的提成資料
                     let commissionRow = null;
-                    for (let j = 1; j < commissionData.length; j++) {
-                        if (commissionData[j][0] === name) {
-                            commissionRow = commissionData[j];
-                            break;
+                    if (commissionData.length > 0) {
+                        for (let j = 1; j < commissionData.length; j++) {
+                            if (commissionData[j] && commissionData[j][0] === name) {
+                                commissionRow = commissionData[j];
+                                break;
+                            }
                         }
                     }
 
                     const employee = {
                         name: name,
-                        position: salaryRow[1],
+                        position: salaryRow[1] || '未設定',
                         baseSalary: salaryRow[2] || 0,
                         devCommission: salaryRow[3] || 0,
                         serviceCommission: salaryRow[4] || 0,
@@ -574,16 +614,31 @@
                             self: commissionRow[6] || 0,
                             attack: commissionRow[8] || 0,
                             knife: commissionRow[10] || 0
-                        } : {}
+                        } : {
+                            service: 0,
+                            dev: 0,
+                            self: 0,
+                            attack: 0,
+                            knife: 0
+                        }
                     };
 
                     employeeData.push(employee);
+                    console.log('處理員工:', name);
+                }
+
+                console.log('總共處理員工數:', employeeData.length);
+                
+                if (employeeData.length === 0) {
+                    showStatus('沒有找到有效的員工數據', 'error');
+                    return;
                 }
 
                 renderEmployeeList();
                 enableButtons();
                 
             } catch (error) {
+                console.error('資料處理失敗:', error);
                 showStatus('資料處理失敗：' + error.message, 'error');
             }
         }
