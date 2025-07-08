@@ -277,6 +277,30 @@
             100% { transform: rotate(360deg); }
         }
         
+        .tier-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        .tier-bronze {
+            background: #cd7f32;
+            color: white;
+        }
+        
+        .tier-silver {
+            background: #c0c0c0;
+            color: #333;
+        }
+        
+        .tier-gold {
+            background: #ffd700;
+            color: #333;
+        }
+        
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -401,7 +425,7 @@
         let selectedEmployee = null;
         let editMode = false;
 
-        // 階梯制度定義
+        // 階梯制度定義 - 更新的提成率
         const commissionRates = {
             客服: [
                 { min: 0, max: 93750, rate: 0.065, tier: '🥉', name: '銅牌' },
@@ -429,6 +453,32 @@
                 { min: 375000, max: Infinity, rate: 0.07, tier: '🥇', name: '金牌' }
             ]
         };
+
+        // 計算提成等級和比率
+        function getCommissionInfo(type, performance) {
+            const rates = commissionRates[type];
+            if (!rates) return { rate: 0, tier: '', name: '', ratePercent: '0%' };
+            
+            for (let i = 0; i < rates.length; i++) {
+                if (performance >= rates[i].min && performance < rates[i].max) {
+                    return {
+                        rate: rates[i].rate,
+                        tier: rates[i].tier,
+                        name: rates[i].name,
+                        ratePercent: (rates[i].rate * 100).toFixed(1) + '%'
+                    };
+                }
+            }
+            
+            // 如果超過最高級別，返回最高級別
+            const topTier = rates[rates.length - 1];
+            return {
+                rate: topTier.rate,
+                tier: topTier.tier,
+                name: topTier.name,
+                ratePercent: (topTier.rate * 100).toFixed(1) + '%'
+            };
+        }
 
         // 文件上傳處理
         function handleFileUpload(event) {
@@ -590,23 +640,38 @@
             }
             
             if (employee.devCommission > 0) {
-                salaryItems.push(['開發提成', '業績 × 提成率', employee.devCommission, 'positive']);
+                const devPerformance = employee.performances?.dev || 0;
+                const afterExpense = Math.round(devPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
+                salaryItems.push([`開發提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.devCommission, 'positive']);
             }
             
             if (employee.serviceCommission > 0) {
-                salaryItems.push(['客服提成', '業績 × 提成率', employee.serviceCommission, 'positive']);
+                const servicePerformance = employee.performances?.service || 0;
+                const afterExpense = Math.round(servicePerformance * 0.9);
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
+                salaryItems.push([`客服提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.serviceCommission, 'positive']);
             }
             
             if (employee.selfCommission > 0) {
-                salaryItems.push(['自開客提成', '業績 × 提成率', employee.selfCommission, 'positive']);
+                const selfPerformance = employee.performances?.self || 0;
+                const afterExpense = Math.round(selfPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
+                salaryItems.push([`自開客提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.selfCommission, 'positive']);
             }
             
             if (employee.attackCommission > 0) {
-                salaryItems.push(['攻擊手提成', '業績 × 提成率', employee.attackCommission, 'positive']);
+                const attackPerformance = employee.performances?.attack || 0;
+                const afterExpense = Math.round(attackPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
+                salaryItems.push([`攻擊手提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.attackCommission, 'positive']);
             }
             
             if (employee.knifeCommission > 0) {
-                salaryItems.push(['砍刀提成', '業績 × 提成率', employee.knifeCommission, 'positive']);
+                const knifePerformance = employee.performances?.knife || 0;
+                const afterExpense = Math.round(knifePerformance * 0.9);
+                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
+                salaryItems.push([`砍刀提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.knifeCommission, 'positive']);
             }
             
             if (employee.adCommission > 0) {
@@ -688,55 +753,70 @@
             const performances = employee.performances;
             
             if (performances.service > 0) {
+                const afterExpense = Math.round(performances.service * 0.9);
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>👥 客服業績</h4>
+                        <h4>👥 客服業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
                         <p>總業績: ${performances.service.toLocaleString()}</p>
-                        <p>扣除開銷後: ${Math.round(performances.service * 0.9).toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.serviceCommission.toLocaleString()}</p>
                     </div>
                 `;
             }
             
             if (performances.dev > 0) {
+                const afterExpense = Math.round(performances.dev * 0.9);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🚀 開發業績</h4>
+                        <h4>🚀 開發業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
                         <p>總業績: ${performances.dev.toLocaleString()}</p>
-                        <p>扣除開銷後: ${Math.round(performances.dev * 0.9).toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.devCommission.toLocaleString()}</p>
                     </div>
                 `;
             }
             
             if (performances.self > 0) {
+                const afterExpense = Math.round(performances.self * 0.9);
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🎯 自開客業績</h4>
+                        <h4>🎯 自開客業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
                         <p>總業績: ${performances.self.toLocaleString()}</p>
-                        <p>扣除開銷後: ${Math.round(performances.self * 0.9).toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.selfCommission.toLocaleString()}</p>
                     </div>
                 `;
             }
             
             if (performances.attack > 0) {
+                const afterExpense = Math.round(performances.attack * 0.9);
+                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>⚔️ 攻擊手業績</h4>
+                        <h4>⚔️ 攻擊手業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
                         <p>總業績: ${performances.attack.toLocaleString()}</p>
-                        <p>扣除開銷後: ${Math.round(performances.attack * 0.9).toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.attackCommission.toLocaleString()}</p>
                     </div>
                 `;
             }
             
             if (performances.knife > 0) {
+                const afterExpense = Math.round(performances.knife * 0.9);
+                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
                 performanceHtml += `
                     <div style="margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h4>🔪 砍刀業績</h4>
+                        <h4>🔪 砍刀業績 <span class="tier-badge tier-${commissionInfo.name.toLowerCase()}">${commissionInfo.tier} ${commissionInfo.name}</span></h4>
                         <p>總業績: ${performances.knife.toLocaleString()}</p>
-                        <p>扣除開銷後: ${Math.round(performances.knife * 0.9).toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
                         <p>提成: ${employee.knifeCommission.toLocaleString()}</p>
                         <p><small>註: 砍刀業績不顯示來源明細</small></p>
                     </div>
@@ -874,35 +954,36 @@
             if (employee.devCommission > 0) {
                 const devPerformance = employee.performances?.dev || 0;
                 const afterExpense = Math.round(devPerformance * 0.9);
-                salaryItems.push(['開發提成4%', `${afterExpense.toLocaleString()} * 4%`, employee.devCommission, 'positive']);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
+                salaryItems.push([`開發提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.devCommission, 'positive']);
             }
             
             if (employee.serviceCommission > 0) {
                 const servicePerformance = employee.performances?.service || 0;
                 const afterExpense = Math.round(servicePerformance * 0.9);
-                const rate = servicePerformance < 93750 ? '6.5%' : servicePerformance < 219000 ? '7%' : '8%';
-                salaryItems.push([`客服提成${rate}`, `${afterExpense.toLocaleString()} * ${rate}`, employee.serviceCommission, 'positive']);
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
+                salaryItems.push([`客服提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.serviceCommission, 'positive']);
             }
             
             if (employee.selfCommission > 0) {
                 const selfPerformance = employee.performances?.self || 0;
                 const afterExpense = Math.round(selfPerformance * 0.9);
-                const rate = selfPerformance < 93750 ? '8%' : selfPerformance < 219000 ? '9%' : '10%';
-                salaryItems.push([`自開客提成${rate}`, `${afterExpense.toLocaleString()} * ${rate}`, employee.selfCommission, 'positive']);
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
+                salaryItems.push([`自開客提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.selfCommission, 'positive']);
             }
             
             if (employee.attackCommission > 0) {
                 const attackPerformance = employee.performances?.attack || 0;
                 const afterExpense = Math.round(attackPerformance * 0.9);
-                const rate = attackPerformance < 187500 ? '6%' : attackPerformance < 281250 ? '7%' : '8%';
-                salaryItems.push([`攻擊手提成${rate}`, `${afterExpense.toLocaleString()} * ${rate}`, employee.attackCommission, 'positive']);
+                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
+                salaryItems.push([`攻擊手提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.attackCommission, 'positive']);
             }
             
             if (employee.knifeCommission > 0) {
                 const knifePerformance = employee.performances?.knife || 0;
                 const afterExpense = Math.round(knifePerformance * 0.9);
-                const rate = knifePerformance < 156250 ? '5%' : knifePerformance < 375000 ? '6%' : '7%';
-                salaryItems.push([`砍刀提成${rate}`, `${afterExpense.toLocaleString()} * ${rate}`, employee.knifeCommission, 'positive']);
+                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
+                salaryItems.push([`砍刀提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.knifeCommission, 'positive']);
             }
             
             if (employee.adCommission > 0) {
@@ -1052,6 +1133,26 @@
         .performance-table tr:last-child td {
             border-bottom: none;
         }
+        .tier-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .tier-銅牌 {
+            background: #cd7f32;
+            color: white;
+        }
+        .tier-銀牌 {
+            background: #c0c0c0;
+            color: #333;
+        }
+        .tier-金牌 {
+            background: #ffd700;
+            color: #333;
+        }
         .print-btn {
             background: #3498db;
             color: white;
@@ -1138,14 +1239,14 @@
             
             if (performances.service > 0) {
                 const afterExpense = Math.round(performances.service * 0.9);
-                const rate = performances.service < 93750 ? '6.5%' : performances.service < 219000 ? '7%' : '8%';
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
                 html += `
                     <div class="performance-group">
-                        <div class="performance-group-header">👥 客服業績</div>
+                        <div class="performance-group-header">👥 客服業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
                         <table class="performance-table">
                             <tr><td>客服總業績</td><td class="amount">${performances.service.toLocaleString()}</td></tr>
                             <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>客服提成${rate}</td><td class="amount positive">${employee.serviceCommission.toLocaleString()}</td></tr>
+                            <tr><td>客服提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.serviceCommission.toLocaleString()}</td></tr>
                         </table>
                     </div>
                 `;
@@ -1153,13 +1254,14 @@
             
             if (performances.dev > 0) {
                 const afterExpense = Math.round(performances.dev * 0.9);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
                 html += `
                     <div class="performance-group">
-                        <div class="performance-group-header">🚀 開發業績</div>
+                        <div class="performance-group-header">🚀 開發業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
                         <table class="performance-table">
                             <tr><td>開發總業績</td><td class="amount">${performances.dev.toLocaleString()}</td></tr>
                             <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>開發提成4%</td><td class="amount positive">${employee.devCommission.toLocaleString()}</td></tr>
+                            <tr><td>開發提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.devCommission.toLocaleString()}</td></tr>
                         </table>
                     </div>
                 `;
@@ -1167,14 +1269,14 @@
             
             if (performances.self > 0) {
                 const afterExpense = Math.round(performances.self * 0.9);
-                const rate = performances.self < 93750 ? '8%' : performances.self < 219000 ? '9%' : '10%';
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
                 html += `
                     <div class="performance-group">
-                        <div class="performance-group-header">🎯 自開客業績</div>
+                        <div class="performance-group-header">🎯 自開客業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
                         <table class="performance-table">
                             <tr><td>自開客總業績</td><td class="amount">${performances.self.toLocaleString()}</td></tr>
                             <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>自開客提成${rate}</td><td class="amount positive">${employee.selfCommission.toLocaleString()}</td></tr>
+                            <tr><td>自開客提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.selfCommission.toLocaleString()}</td></tr>
                         </table>
                     </div>
                 `;
@@ -1182,14 +1284,14 @@
             
             if (performances.attack > 0) {
                 const afterExpense = Math.round(performances.attack * 0.9);
-                const rate = performances.attack < 187500 ? '6%' : performances.attack < 281250 ? '7%' : '8%';
+                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
                 html += `
                     <div class="performance-group">
-                        <div class="performance-group-header">⚔️ 攻擊手業績</div>
+                        <div class="performance-group-header">⚔️ 攻擊手業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
                         <table class="performance-table">
                             <tr><td>攻擊手總業績</td><td class="amount">${performances.attack.toLocaleString()}</td></tr>
                             <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>攻擊手提成${rate}</td><td class="amount positive">${employee.attackCommission.toLocaleString()}</td></tr>
+                            <tr><td>攻擊手提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.attackCommission.toLocaleString()}</td></tr>
                         </table>
                     </div>
                 `;
@@ -1197,14 +1299,14 @@
             
             if (performances.knife > 0) {
                 const afterExpense = Math.round(performances.knife * 0.9);
-                const rate = performances.knife < 156250 ? '5%' : performances.knife < 375000 ? '6%' : '7%';
+                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
                 html += `
                     <div class="performance-group">
-                        <div class="performance-group-header">🔪 砍刀業績</div>
+                        <div class="performance-group-header">🔪 砍刀業績 <span class="tier-badge tier-${commissionInfo.name}">${commissionInfo.tier} ${commissionInfo.name}</span></div>
                         <table class="performance-table">
                             <tr><td>砍刀總業績</td><td class="amount">${performances.knife.toLocaleString()}</td></tr>
                             <tr><td>大區開銷後業績</td><td>${afterExpense.toLocaleString()} (扣除10%)</td></tr>
-                            <tr><td>砍刀提成${rate}</td><td class="amount positive">${employee.knifeCommission.toLocaleString()}</td></tr>
+                            <tr><td>砍刀提成${commissionInfo.ratePercent}</td><td class="amount positive">${employee.knifeCommission.toLocaleString()}</td></tr>
                         </table>
                     </div>
                 `;
