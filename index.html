@@ -552,6 +552,7 @@
                 const salarySheet = workbookData.Sheets['薪資總表'];
                 const salaryData = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
                 console.log('薪資總表數據行數:', salaryData.length);
+                console.log('薪資總表前3行:', salaryData.slice(0, 3));
                 
                 // 讀取提成計算表
                 let commissionData = [];
@@ -559,6 +560,7 @@
                     const commissionSheet = workbookData.Sheets['提成計算'];
                     commissionData = XLSX.utils.sheet_to_json(commissionSheet, { header: 1 });
                     console.log('提成計算表數據行數:', commissionData.length);
+                    console.log('提成計算表前3行:', commissionData.slice(0, 3));
                 }
                 
                 // 讀取業績來源表
@@ -566,6 +568,8 @@
                     const performanceSheet = workbookData.Sheets['業績來源'];
                     performanceSourceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
                     console.log('業績來源表數據行數:', performanceSourceData.length);
+                    console.log('業績來源表前5行:', performanceSourceData.slice(0, 5));
+                    console.log('業績來源表完整數據:', performanceSourceData);
                 } else {
                     performanceSourceData = [];
                     console.log('沒有找到業績來源表');
@@ -666,18 +670,31 @@
 
             for (let i = 1; i < performanceSourceData.length; i++) {
                 const row = performanceSourceData[i];
-                const devPerson = row[0];
-                const servicePerson = row[1];
-                const amount = row[2] || 0;
+                const devPerson = row[0]; // 開發人員
+                const servicePerson = row[1]; // 客服人員
+                const amount = row[2] || 0; // 金額
+                const referrer1 = row[3] || ''; // 導流人1
+                const referrer2 = row[4] || ''; // 導流人2
+                const referrer3 = row[5] || ''; // 導流人3
 
                 if (!devPerson || !servicePerson || !amount) continue;
+
+                // 建立導流鏈
+                let referralChain = '';
+                const referrers = [referrer1, referrer2, referrer3].filter(r => r && typeof r === 'string' && r.trim() !== '');
+                if (referrers.length > 0) {
+                    referralChain = referrers.join('導') + '導' + servicePerson;
+                } else {
+                    referralChain = servicePerson;
+                }
 
                 // 開發業績：開發是該員工 且 客服不是自己
                 if (devPerson === employeeName && servicePerson !== employeeName) {
                     details.dev.push({
                         devPerson: devPerson,
                         servicePerson: servicePerson,
-                        amount: amount
+                        amount: amount,
+                        referralChain: referralChain
                     });
                 }
 
@@ -686,7 +703,8 @@
                     details.service.push({
                         devPerson: devPerson,
                         servicePerson: servicePerson,
-                        amount: amount
+                        amount: amount,
+                        referralChain: referralChain
                     });
                 }
 
@@ -695,7 +713,8 @@
                     details.self.push({
                         devPerson: devPerson,
                         servicePerson: servicePerson,
-                        amount: amount
+                        amount: amount,
+                        referralChain: referralChain
                     });
                 }
             }
@@ -736,6 +755,12 @@
             document.querySelectorAll('.employee-item')[index].classList.add('selected');
             
             selectedEmployee = employeeData[index];
+            console.log('選中員工:', selectedEmployee.name);
+            
+            // 測試業績來源明細
+            const performanceDetails = getPerformanceDetails(selectedEmployee.name);
+            console.log('該員工的業績來源明細:', performanceDetails);
+            
             generatePayslipPreview(selectedEmployee);
             
             document.getElementById('generateSelectedBtn').disabled = false;
@@ -950,9 +975,7 @@
             sourceList.forEach(item => {
                 detailHtml += `
                     <tr>
-                        <td>開發: ${item.devPerson}</td>
-                        <td>客服: ${item.servicePerson}</td>
-                        <td style="text-align: right;">${item.amount.toLocaleString()}</td>
+                        <td>${item.referralChain}：${item.amount.toLocaleString()}</td>
                     </tr>
                 `;
             });
@@ -1273,9 +1296,7 @@
             sourceList.forEach(item => {
                 html += `
                     <tr>
-                        <td>開發: ${item.devPerson}</td>
-                        <td>客服: ${item.servicePerson}</td>
-                        <td style="text-align: right;">${item.amount.toLocaleString()}</td>
+                        <td>${item.referralChain}：${item.amount.toLocaleString()}</td>
                     </tr>
                 `;
             });
