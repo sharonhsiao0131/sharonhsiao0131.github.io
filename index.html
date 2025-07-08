@@ -256,6 +256,12 @@
             border: 1px solid #f5c6cb;
         }
         
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
         .loading {
             display: none;
             text-align: center;
@@ -328,8 +334,8 @@
         
         <div class="main-content">
             <div class="sidebar">
-                <div class="upload-section" onclick="document.getElementById('excelFile').click()">
-                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;" onchange="handleFileUpload(event)">
+                <div class="upload-section" onclick="uploadFile()">
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
                     <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
                     <h3>上傳Excel文件</h3>
                     <p>支援 .xlsx 和 .xls 格式</p>
@@ -461,6 +467,11 @@
             ]
         };
 
+        // 上傳文件
+        function uploadFile() {
+            document.getElementById('excelFile').click();
+        }
+
         // 計算提成等級和比率
         function getCommissionInfo(type, performance) {
             const rates = commissionRates[type];
@@ -542,7 +553,7 @@
                 const salaryData = XLSX.utils.sheet_to_json(salarySheet, { header: 1 });
                 console.log('薪資總表數據行數:', salaryData.length);
                 
-                // 讀取提成計算表（可選）
+                // 讀取提成計算表
                 let commissionData = [];
                 if (workbookData.Sheets['提成計算']) {
                     const commissionSheet = workbookData.Sheets['提成計算'];
@@ -550,7 +561,7 @@
                     console.log('提成計算表數據行數:', commissionData.length);
                 }
                 
-                // 讀取業績來源表（可選）
+                // 讀取業績來源表
                 if (workbookData.Sheets['業績來源']) {
                     const performanceSheet = workbookData.Sheets['業績來源'];
                     performanceSourceData = XLSX.utils.sheet_to_json(performanceSheet, { header: 1 });
@@ -653,12 +664,11 @@
 
             if (!performanceSourceData || performanceSourceData.length === 0) return details;
 
-            // 從第二行開始處理數據（第一行是標題）
             for (let i = 1; i < performanceSourceData.length; i++) {
                 const row = performanceSourceData[i];
-                const devPerson = row[0]; // 開發人員
-                const servicePerson = row[1]; // 客服人員
-                const amount = row[2] || 0; // 金額
+                const devPerson = row[0];
+                const servicePerson = row[1];
+                const amount = row[2] || 0;
 
                 if (!devPerson || !servicePerson || !amount) continue;
 
@@ -719,18 +729,15 @@
 
         // 選擇員工
         function selectEmployee(index) {
-            // 移除之前的選中狀態
             document.querySelectorAll('.employee-item').forEach(item => {
                 item.classList.remove('selected');
             });
             
-            // 添加選中狀態
             document.querySelectorAll('.employee-item')[index].classList.add('selected');
             
             selectedEmployee = employeeData[index];
             generatePayslipPreview(selectedEmployee);
             
-            // 啟用按鈕
             document.getElementById('generateSelectedBtn').disabled = false;
             document.getElementById('editBtn').disabled = false;
         }
@@ -739,7 +746,6 @@
         function generatePayslipPreview(employee) {
             const preview = document.getElementById('payslipPreview');
             
-            // 計算薪資明細
             const salaryItems = [];
             
             if (employee.baseSalary > 0) {
@@ -795,10 +801,6 @@
             
             if (employee.lateDeduction < 0) {
                 salaryItems.push(['遲到扣款', `${employee.lateMinutes}分鐘`, employee.lateDeduction, 'negative']);
-            }
-            
-            if (employee.vacationDeduction < 0) {
-                salaryItems.push(['休假扣薪', `${employee.vacationDays}天`, employee.vacationDeduction, 'negative']);
             }
             
             if (employee.expenseDeduction < 0) {
@@ -961,3 +963,352 @@
             `;
             
             return detailHtml;
+        }
+
+        // 切換編輯模式
+        function toggleEditMode() {
+            if (!selectedEmployee) return;
+            
+            editMode = !editMode;
+            const editForm = document.getElementById('editForm');
+            const editBtn = document.getElementById('editBtn');
+            
+            if (editMode) {
+                editForm.style.display = 'block';
+                editBtn.textContent = '❌ 取消編輯';
+                editBtn.className = 'btn btn-secondary';
+                
+                document.getElementById('editBaseSalary').value = selectedEmployee.baseSalary;
+                document.getElementById('editDevCommission').value = selectedEmployee.devCommission;
+                document.getElementById('editServiceCommission').value = selectedEmployee.serviceCommission;
+                document.getElementById('editSelfCommission').value = selectedEmployee.selfCommission;
+                document.getElementById('editAttackCommission').value = selectedEmployee.attackCommission;
+                document.getElementById('editKnifeCommission').value = selectedEmployee.knifeCommission;
+                document.getElementById('editAdCommission').value = selectedEmployee.adCommission;
+                document.getElementById('editCarAllowance').value = selectedEmployee.carAllowance;
+                document.getElementById('editTargetBonus').value = selectedEmployee.targetBonus;
+                document.getElementById('editLateDeduction').value = selectedEmployee.lateDeduction;
+                document.getElementById('editVacationDeduction').value = selectedEmployee.vacationDeduction;
+                document.getElementById('editExpenseDeduction').value = selectedEmployee.expenseDeduction;
+            } else {
+                cancelEdit();
+            }
+        }
+
+        // 套用編輯
+        function applyEdit() {
+            if (!selectedEmployee) return;
+            
+            selectedEmployee.baseSalary = parseFloat(document.getElementById('editBaseSalary').value) || 0;
+            selectedEmployee.devCommission = parseFloat(document.getElementById('editDevCommission').value) || 0;
+            selectedEmployee.serviceCommission = parseFloat(document.getElementById('editServiceCommission').value) || 0;
+            selectedEmployee.selfCommission = parseFloat(document.getElementById('editSelfCommission').value) || 0;
+            selectedEmployee.attackCommission = parseFloat(document.getElementById('editAttackCommission').value) || 0;
+            selectedEmployee.knifeCommission = parseFloat(document.getElementById('editKnifeCommission').value) || 0;
+            selectedEmployee.adCommission = parseFloat(document.getElementById('editAdCommission').value) || 0;
+            selectedEmployee.carAllowance = parseFloat(document.getElementById('editCarAllowance').value) || 0;
+            selectedEmployee.targetBonus = parseFloat(document.getElementById('editTargetBonus').value) || 0;
+            selectedEmployee.lateDeduction = parseFloat(document.getElementById('editLateDeduction').value) || 0;
+            selectedEmployee.vacationDeduction = parseFloat(document.getElementById('editVacationDeduction').value) || 0;
+            selectedEmployee.expenseDeduction = parseFloat(document.getElementById('editExpenseDeduction').value) || 0;
+            
+            selectedEmployee.totalSalary = selectedEmployee.baseSalary + 
+                                         selectedEmployee.devCommission +
+                                         selectedEmployee.serviceCommission +
+                                         selectedEmployee.selfCommission +
+                                         selectedEmployee.attackCommission +
+                                         selectedEmployee.knifeCommission +
+                                         selectedEmployee.adCommission +
+                                         selectedEmployee.carAllowance +
+                                         selectedEmployee.targetBonus +
+                                         selectedEmployee.lateDeduction +
+                                         selectedEmployee.vacationDeduction +
+                                         selectedEmployee.expenseDeduction;
+            
+            renderEmployeeList();
+            generatePayslipPreview(selectedEmployee);
+            cancelEdit();
+            
+            showStatus('薪資資料已更新！', 'success');
+        }
+
+        // 取消編輯
+        function cancelEdit() {
+            editMode = false;
+            document.getElementById('editForm').style.display = 'none';
+            document.getElementById('editBtn').textContent = '✏️ 編輯模式';
+            document.getElementById('editBtn').className = 'btn btn-secondary';
+        }
+
+        // 生成選中薪資單
+        function generateSelectedPayslip() {
+            if (!selectedEmployee) return;
+            
+            const payslipWindow = window.open('', '_blank');
+            const payslipHtml = generateFullPayslipHtml(selectedEmployee);
+            
+            payslipWindow.document.write(payslipHtml);
+            payslipWindow.document.close();
+            
+            showStatus(`已生成 ${selectedEmployee.name} 的薪資單`, 'success');
+        }
+
+        // 批次生成所有薪資單
+        function generateAllPayslips() {
+            if (employeeData.length === 0) return;
+            
+            showLoading(true);
+            showStatus('正在批次生成薪資單...', 'info');
+            
+            setTimeout(() => {
+                employeeData.forEach((employee, index) => {
+                    setTimeout(() => {
+                        const payslipWindow = window.open('', '_blank');
+                        const payslipHtml = generateFullPayslipHtml(employee);
+                        
+                        payslipWindow.document.write(payslipHtml);
+                        payslipWindow.document.close();
+                        
+                        if (index === employeeData.length - 1) {
+                            showLoading(false);
+                            showStatus(`已成功生成 ${employeeData.length} 份薪資單！`, 'success');
+                        }
+                    }, index * 500);
+                });
+            }, 1000);
+        }
+
+        // 生成完整薪資單HTML
+        function generateFullPayslipHtml(employee) {
+            const salaryItems = [];
+            
+            if (employee.baseSalary > 0) {
+                salaryItems.push(['底薪', '35,000 / 32', employee.baseSalary, 'positive']);
+            }
+            
+            if (employee.devCommission > 0) {
+                const devPerformance = employee.performances?.dev || 0;
+                const afterExpense = Math.round(devPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
+                salaryItems.push([`開發提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.devCommission, 'positive']);
+            }
+            
+            if (employee.serviceCommission > 0) {
+                const servicePerformance = employee.performances?.service || 0;
+                const afterExpense = Math.round(servicePerformance * 0.9);
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
+                salaryItems.push([`客服提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.serviceCommission, 'positive']);
+            }
+            
+            if (employee.selfCommission > 0) {
+                const selfPerformance = employee.performances?.self || 0;
+                const afterExpense = Math.round(selfPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
+                salaryItems.push([`自開客提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.selfCommission, 'positive']);
+            }
+            
+            if (employee.attackCommission > 0) {
+                const attackPerformance = employee.performances?.attack || 0;
+                const afterExpense = Math.round(attackPerformance * 0.9);
+                const commissionInfo = getCommissionInfo('攻擊手', afterExpense);
+                salaryItems.push([`攻擊手提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.attackCommission, 'positive']);
+            }
+            
+            if (employee.knifeCommission > 0) {
+                const knifePerformance = employee.performances?.knife || 0;
+                const afterExpense = Math.round(knifePerformance * 0.9);
+                const commissionInfo = getCommissionInfo('砍刀', afterExpense);
+                salaryItems.push([`砍刀提成${commissionInfo.ratePercent}`, `${afterExpense.toLocaleString()} × ${commissionInfo.ratePercent}`, employee.knifeCommission, 'positive']);
+            }
+            
+            if (employee.adCommission > 0) {
+                salaryItems.push(['廣告提成', '廣告業績提成', employee.adCommission, 'positive']);
+            }
+            
+            if (employee.carAllowance > 0) {
+                salaryItems.push(['車商津貼', '-', employee.carAllowance, 'positive']);
+            }
+            
+            if (employee.targetBonus > 0) {
+                salaryItems.push(['達標獎金', '-', employee.targetBonus, 'positive']);
+            }
+            
+            if (employee.lateDeduction < 0) {
+                salaryItems.push(['遲到扣款', `${employee.lateMinutes}分鐘`, employee.lateDeduction, 'negative']);
+            }
+            
+            if (employee.vacationDeduction < 0) {
+                salaryItems.push(['休假扣薪', `${employee.vacationDays}天`, employee.vacationDeduction, 'negative']);
+            }
+            
+            if (employee.expenseDeduction < 0) {
+                salaryItems.push(['開銷扣款', '-', employee.expenseDeduction, 'negative']);
+            }
+
+            const performanceDetails = getPerformanceDetails(employee.name);
+
+            return `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>${employee.name} - 薪資明細單</title>
+    <style>
+        body { font-family: 'Microsoft JhengHei'; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .info { background: #f5f5f5; padding: 15px; margin: 20px 0; }
+        .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .table th { background: #4CAF50; color: white; }
+        .amount { text-align: right; font-weight: bold; }
+        .positive { color: green; }
+        .negative { color: red; }
+        .total { background: #333; color: white; font-weight: bold; }
+        .source-detail { margin: 15px 0; border: 1px solid #ddd; }
+        .source-header { background: #f0f0f0; padding: 10px; font-weight: bold; }
+        .source-table { width: 100%; border-collapse: collapse; }
+        .source-table td { padding: 8px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>個人薪資明細單</h1>
+        <p>2025年06月</p>
+    </div>
+    
+    <div class="info">
+        <strong>人員:</strong> ${employee.name} &nbsp;&nbsp;
+        <strong>職位:</strong> ${employee.position} &nbsp;&nbsp;
+        <strong>USDT匯率:</strong> 32
+    </div>
+    
+    <h3>薪資結構</h3>
+    <table class="table">
+        <thead>
+            <tr><th>項目</th><th>說明</th><th>金額（U）</th></tr>
+        </thead>
+        <tbody>
+            ${salaryItems.map(([item, desc, amount, type]) => `
+                <tr>
+                    <td>${item}</td>
+                    <td>${desc}</td>
+                    <td class="amount ${type}">${amount.toLocaleString()}</td>
+                </tr>
+            `).join('')}
+            <tr class="total">
+                <td colspan="2">總薪資</td>
+                <td class="amount">${employee.totalSalary.toLocaleString()}</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h3>業績明細</h3>
+    ${generateFullPerformanceHtml(employee, performanceDetails)}
+</body>
+</html>`;
+        }
+
+        // 生成完整業績HTML
+        function generateFullPerformanceHtml(employee, performanceDetails) {
+            let html = '';
+            
+            if (employee.performances.service > 0) {
+                const afterExpense = Math.round(employee.performances.service * 0.9);
+                const commissionInfo = getCommissionInfo('客服', afterExpense);
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h4>👥 客服業績</h4>
+                        <p>總業績: ${employee.performances.service.toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
+                        <p>提成: ${employee.serviceCommission.toLocaleString()}</p>
+                        ${generateFullSourceDetails(performanceDetails.service, '客服業績來源明細')}
+                    </div>
+                `;
+            }
+            
+            if (employee.performances.dev > 0) {
+                const afterExpense = Math.round(employee.performances.dev * 0.9);
+                const commissionInfo = getCommissionInfo('開發', afterExpense);
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h4>🚀 開發業績</h4>
+                        <p>總業績: ${employee.performances.dev.toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
+                        <p>提成: ${employee.devCommission.toLocaleString()}</p>
+                        ${generateFullSourceDetails(performanceDetails.dev, '開發業績來源明細')}
+                    </div>
+                `;
+            }
+            
+            if (employee.performances.self > 0) {
+                const afterExpense = Math.round(employee.performances.self * 0.9);
+                const commissionInfo = getCommissionInfo('自開客', afterExpense);
+                html += `
+                    <div style="margin: 20px 0;">
+                        <h4>🎯 自開客業績</h4>
+                        <p>總業績: ${employee.performances.self.toLocaleString()}</p>
+                        <p>扣除開銷後: ${afterExpense.toLocaleString()}</p>
+                        <p>提成率: ${commissionInfo.ratePercent}</p>
+                        <p>提成: ${employee.selfCommission.toLocaleString()}</p>
+                        ${generateFullSourceDetails(performanceDetails.self, '自開客業績來源明細')}
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+
+        // 生成完整版業績來源明細
+        function generateFullSourceDetails(sourceList, title) {
+            if (!sourceList || sourceList.length === 0) return '';
+            
+            let html = `
+                <div class="source-detail">
+                    <div class="source-header">${title}</div>
+                    <table class="source-table">
+            `;
+            
+            sourceList.forEach(item => {
+                html += `
+                    <tr>
+                        <td>開發: ${item.devPerson}</td>
+                        <td>客服: ${item.servicePerson}</td>
+                        <td style="text-align: right;">${item.amount.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `</table></div>`;
+            return html;
+        }
+
+        // 顯示載入狀態
+        function showLoading(show) {
+            document.getElementById('loadingStatus').style.display = show ? 'block' : 'none';
+        }
+
+        // 顯示狀態訊息
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        // 啟用按鈕
+        function enableButtons() {
+            document.getElementById('generateAllBtn').disabled = false;
+        }
+
+        // 綁定文件上傳事件
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('excelFile').addEventListener('change', handleFileUpload);
+            showStatus('請上傳Excel文件開始使用', 'info');
+        });
+    </script>
+</body>
+</html>
